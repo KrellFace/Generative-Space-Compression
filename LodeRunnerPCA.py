@@ -81,20 +81,30 @@ mario_folders_dict = {
 
 loderunnder_path = "C:/Users/owith/Documents/External Repositories/VGLC/TheVGLC/Lode Runner/Processed/"
 
+
+#Define our Level class wrapper
+class Level:
+
+    def __init__(self, l_name, gen_name, char_rep):
+        self.level_name = l_name,
+        self.generator_name = gen_name,
+        self.char_rep = char_rep
+
+
 #Get a 2D character matrix from a level file 
 def char_matrix_from_filename(path):
     with open(path) as f:
         charlist = f.read()
-        print("Processing: "  + path)
+        #print("Processing: "  + path)
         #First, we calculate the levels dimensions, and create a new list with no new line characters
         width = 0
+        #Flag for counting the characters in the first line as our width calculation
         width_calculated = False
         height = 0
-
         charlist_newlinesremoved = list()
 
         for char in charlist:
-            
+            #Skip newline characters and increase height
             if char == '\n':
                 width_calculated = True
                 height+=1
@@ -102,40 +112,31 @@ def char_matrix_from_filename(path):
                 charlist_newlinesremoved.append(char)
             if not width_calculated:
                 width+=1
-        #print(width)
-        #print(charlist_newlinesremoved)
-        #print("Width " + str(width))
-        #print("Height: " + str(height))
         output_matrix = np.reshape(charlist_newlinesremoved,(height, width), order = 'C')
-        #print(output_matrix)
         #print("Level processed: "  + path)
         return output_matrix
 
-#Generic method for taking windows form matrices 
+#Generic method for taking windows from matrices 
 def take_window_from_matrix(input_matrix, top_corner_x, top_corner_y, width, height):
 
     output_window = np.chararray((height, width), unicode = True)
   
-  #for (y in 1:window_size_y){
     for y in range(height):
-
         output_window[y,] = input_matrix[y+top_corner_y,top_corner_x:(top_corner_x+width)]
     
     return output_window
 
 #Capture a window of specified size from the bottom right of a matrix
-def take_br_window(input_matrix, width, height):
+def take_window_from_bottomright(input_matrix, width, height):
     x_corner = input_matrix.shape[1] - width
     y_corner = input_matrix.shape[0] - height
     return (take_window_from_matrix(input_matrix, x_corner, y_corner, width, height))
 
-#Generates a onehot 3D array from a character matrix
-#This is because the length of dictionary wont necesarily correspond to this length, as multiple char tile types map to the same numeric tile type
+#Generates a onehot 3D array from a character matrix, using mappings between characters and integers specified in a tile dictionary
 def onehot_from_charmatrix_tilecountspecified(input_matrix, tile_dict, num_tile_type):
     #Create our empty 3D matrix to populate
     input_shape = np.shape(input_matrix)
     one_hot = np.zeros((input_shape[0], input_shape[1], num_tile_type))
-    #print(np.shape(one_hot))
 
     #Loop through full matrix to populate it
     for x in range(input_shape[0]):
@@ -145,7 +146,7 @@ def onehot_from_charmatrix_tilecountspecified(input_matrix, tile_dict, num_tile_
 
     return one_hot
 
-#Returns a 3D one hot array 
+#Generates a 3D one hot array, using a dictionary field specifying the number of options 
 def onehot_from_charmatrix(input_matrix, tile_dict):
     return onehot_from_charmatrix_tilecountspecified(input_matrix, tile_dict, tile_dict['CountOfNumericTileTypes'])
 
@@ -166,115 +167,62 @@ def generate_col_names(height, width, num_tiletypes):
 def get_filenames_from_folder(path):
     return glob.glob(path + "*.txt")
 
-#Generates a Dataframe of one hot representations of all levels from a folder with a specified tile dictionary
-def get_all_onehot_from_folder(path, tile_dict):
+
+def get_all_onehot_from_folder_size_specified(path, tile_dict, window_height, window_width):
     file_names = get_filenames_from_folder(path)
     
-    #Create empty dataframe
-    #NB Height Width and Tile Count are hardcoded here -not ideal
-    colname_list = generate_col_names(22, 32, 8)
-    df_alllevels = pd.DataFrame(columns = colname_list)
+    #Generate column names
+    colname_list = generate_col_names(window_height, window_width, tile_dict["CountOfNumericTileTypes"])
+    #colname_list.insert(0, "level_name")
+    #df_alllevels = pd.DataFrame(columns = colname_list)
     #print(df_alllevels)
+    alllevels_df_list = []
 
-    #Loop through all levels and add their onehot reps to our dataframe
+    #Loop through all levels and add their onehot reps to list
     for level in file_names:
         level_name = os.path.basename(level)
         char_rep = char_matrix_from_filename(level)
-        onehot_rep = onehot_from_charmatrix(char_rep, tile_dict)
-        flat_rep = np.ndarray.flatten(onehot_rep)
-        df_newlevel = pd.DataFrame(flat_rep.reshape(-1, len(flat_rep)), columns=colname_list)
-        df_alllevels = pd.concat([df_alllevels, df_newlevel])
-        #df_alllevels = df_alllevels.append(df_newlevel, ignore_index = False)
-        #Hack - Rename all rows with index = '0' (should only be the most recently added) to level_name
-        df_alllevels = df_alllevels.rename(index={0:level_name})
-        #print("Level " + level_name +  "processed")
-
-    
-    return df_alllevels
-
-#Generates a Dataframe of one hot representations of all levels from a folder with a specified tile dictionary
-def get_all_onehot_from_folder_size_specified(path, tile_dict, height, width):
-    file_names = get_filenames_from_folder(path)
-    
-    #Create empty dataframe
-    #NB Height Width and Tile Count are hardcoded here -not ideal
-    colname_list = generate_col_names(height, width, tile_dict["CountOfNumericTileTypes"])
-    df_alllevels = pd.DataFrame(columns = colname_list)
-    #print(df_alllevels)
-
-    #Loop through all levels and add their onehot reps to our dataframe
-    for level in file_names:
-        level_name = os.path.basename(level)
-        char_rep = char_matrix_from_filename(level)
-        char_rep_window = take_br_window(char_rep, width, height)
+        char_rep_window = take_window_from_bottomright(char_rep, window_width, window_height)
         onehot_rep = onehot_from_charmatrix(char_rep_window, tile_dict)
         flat_rep = np.ndarray.flatten(onehot_rep)
-        #df_newlevel = pd.DataFrame(flat_rep.reshape(-1, len(flat_rep)), columns=colname_list)
-        df_newlevel = pd.DataFrame(flat_rep.reshape(-1, len(flat_rep)), columns=colname_list)
-        df_alllevels = pd.concat([df_alllevels, df_newlevel])
-        #df_alllevels = df_alllevels.append(df_newlevel, ignore_index = False)
-        #Hack - Rename all rows with index = '0' (should only be the most recently added) to level_name
-        df_alllevels = df_alllevels.rename(index={0:level_name})
-        #print("Level " + level_name +  "processed")
+        level_df = pd.DataFrame(flat_rep.reshape(-1, len(flat_rep)), columns=colname_list)
+        level_df.insert(0,"level_name",[level_name])
+        alllevels_df_list.append(level_df)
+        #print(level_df.columns)
 
-    
-    return df_alllevels
+    return pd.concat(alllevels_df_list, ignore_index=True)
 
-#Returns a Dataframe of levels and their values for the top PCs
-#Also returns a dictionionary of  the variance explained by the Top 2 PCs
 def get_PC_values_from_compiled_onehot(onehot_input):
     #print(df_levellist)
 
     #Testing PCA
     #From: https://towardsdatascience.com/pca-using-python-scikit-learn-e653f8989e60
-    features = onehot_input.columns
-    rownames = onehot_input.index.tolist()
+    #Skip first column as thats the levelname column
+    features = onehot_input.columns[1:]
+    levelnames = onehot_input['level_name'].tolist()
 
     #print(rownames)
-
     x = onehot_input.loc[:,features].values
     x = StandardScaler().fit_transform(x)
     #print(x)
 
     pca = PCA(n_components=2)
-
     components = pca.fit_transform(x)
-
     print(pca.explained_variance_ratio_)
 
     principalDf = pd.DataFrame(data = components
-                , index = rownames
                 , columns = ['PC 1', 'PC 2'])
 
+    principalDf['level_name'] = levelnames       
+    
     pc_var_explained = {
         "PC1": pca.explained_variance_ratio_[0],
         "PC2": pca.explained_variance_ratio_[1]
     }
-
     return (principalDf,pc_var_explained)
 
 
-def plot_basic_pca(pca_info):
-    variance_explained = pca_info[1]
-    print(variance_explained)
-    fig = plt.figure(figsize = (8,8))
-    ax = fig.add_subplot(1,1,1) 
-    ax.set_xlabel('Principal Component 1: ' + str("{0:.3%}".format(variance_explained['PC1'])), fontsize = 15)
-    ax.set_ylabel('Principal Component 2: ' + str("{0:.3%}".format(variance_explained['PC2'])), fontsize = 15)
-    ax.set_title('2 component PCA', fontsize = 20)
-    ax.scatter(pca_info[0].loc[:, 'PC 1']
-                , pca_info[0].loc[:, 'PC 2']
-                #, c = color
-                , s = 50)
-
-    #Loop through all rows and annotate the plot with the level names
-    for index in pca_info[0].index.tolist():
-        ax.annotate(index,(pca_info[0].at[index, 'PC 1'],pca_info[0].at[index, 'PC 2']))
-
-    ax.grid()
-    plt.show()
-
-def plot_pca_with_generator_name(pca_info, gen_names):
+def plot_pca(pca_info, gen_names=[]):
     variance_explained = pca_info[1]
     pca_info_for_each_level = pca_info[0]
     print(variance_explained)
@@ -284,30 +232,40 @@ def plot_pca_with_generator_name(pca_info, gen_names):
     ax.set_ylabel('Principal Component 2: ' + str("{0:.3%}".format(variance_explained['PC2'])), fontsize = 15)
     ax.set_title('2 component PCA', fontsize = 20)
 
-    for generator in gen_names:
-        #Generate a random color for the generator
-        rgb = np.random.rand(3,)
-        #Limit our targets to just current generator
-        to_keep = pca_info_for_each_level['Generator_Name'] == generator
-        ax.scatter(pca_info_for_each_level.loc[to_keep, 'PC 1']
-                    , pca_info_for_each_level.loc[to_keep, 'PC 2']
-                    , c = [rgb]
-                    , s = 50)
+    #Color each generators points differently if we are running for multiple alternatives
+    if len(gen_names)>0:
+        for generator in gen_names:
+            #Generate a random color for the generator
+            rgb = np.random.rand(3,)
+            #Limit our targets to just current generator
+            to_keep = pca_info_for_each_level['Generator_Name'] == generator
+            ax.scatter(pca_info_for_each_level.loc[to_keep, 'PC 1']
+                        , pca_info_for_each_level.loc[to_keep, 'PC 2']
+                        , c = [rgb]
+                        , s = 50)
+    #For single generator PCA
+    else:
+        ax.scatter(pca_info[0].loc[:, 'PC 1']
+                    , pca_info[0].loc[:, 'PC 2']
+                    #, c = color
+                    , s = 50)       
 
-    #Loop through all rows and annotate the plot with the level names
-    for index in pca_info[0].index.tolist():
-        ax.annotate(index,(pca_info[0].at[index, 'PC 1'],pca_info[0].at[index, 'PC 2']))
+    for index, row in pca_info_for_each_level.iterrows():
+        #print(row['c1'], row['c2'])
+        ax.annotate(row['level_name'],(row['PC 1'],row['PC 2']))
+
     ax.legend(gen_names)
     ax.grid()
     plt.show()
 
-def mario_pca_analysis(mario_tile_dict,height, width):
+#Retrieve multiple folders worth of levels from different generators to simultaneously analyse
+def multigenerator_pca_analysis(folders_dict,tile_dict,height, width):
     #Storage for our compiled dataframe from all folders
     output_dfs = []
     generator_names =[]
-    for folder in mario_folders_dict:
+    for folder in folders_dict:
         #Get all one for for specific folder
-        current_set = get_all_onehot_from_folder_size_specified(mario_folders_dict[folder], mario_tile_dict,  height, width)
+        current_set = get_all_onehot_from_folder_size_specified(folders_dict[folder], tile_dict,  height, width)
         #print("Curr set type: " + current_set.dtype)
         current_set['Generator_Name'] =  folder
         #print("Curr set type: " + current_set.dtype)
@@ -315,26 +273,38 @@ def mario_pca_analysis(mario_tile_dict,height, width):
         output_dfs.append(current_set)
     all_levels_onehot =  pd.concat(output_dfs, ignore_index=False)
 
+    gen_name_list = all_levels_onehot['Generator_Name'].tolist()
     pca_analysis = get_PC_values_from_compiled_onehot(all_levels_onehot.drop('Generator_Name', axis=1))
-    pc_variance_explained = pca_analysis[1]
-    pca_df_with_generator_names = pd.concat([pca_analysis[0], all_levels_onehot[['Generator_Name']]], axis = 1)
+    #pc_variance_explained = pca_analysis[1]
+    #pca_df_with_generator_names = pd.concat([pca_analysis[0], all_levels_onehot[['Generator_Name']]], axis = 1)
+    pca_analysis[0]['Generator_Name'] = gen_name_list
 
-    plot_pca_with_generator_name([pca_df_with_generator_names,pc_variance_explained], generator_names)
+    #plot_pca_with_generator_name([pca_df_with_generator_names,pc_variance_explained], generator_names)
+    plot_pca(pca_analysis, generator_names)
 
 
 #TESTING MARIO PCA
 
-mario_pca_analysis(mario_tiletypes_dict, 10,80)
+multigenerator_pca_analysis( mario_folders_dict, mario_tiletypes_dict, 10,80)
 
-#TESTING PCA
+#TESTING ALT METHODS
 
+#Deprecated method
 #df_levellist = get_all_onehot_from_folder(loderunnder_path, lr_tiletypes_dict)
 #print(np.size(df_levellist))
 
-
 #lr_pcainfo = get_PC_values_from_compiled_onehot(df_levellist)
-
 #plot_basic_pca(lr_pcainfo)
+
+#Alt method
+#df_alt_levellist = get_all_onehot_from_folder_size_specified(loderunnder_path, lr_tiletypes_dict, 22, 32)
+#print(np.size(df_alt_levellist))
+
+#lr_alt_pcainfo = get_PC_values_from_compiled_onehot(df_alt_levellist)
+#print(lr_alt_pcainfo[0].columns)
+#plot_pca(lr_alt_pcainfo)
+
+
 
 #TESTING DYNAMIC WINDOW SIZE SETTING
 #df_windowed_levelist = get_all_onehot_from_folder_size_specified(loderunnder_path, lr_tiletypes_dict,22,32)
@@ -370,3 +340,147 @@ mario_pca_analysis(mario_tiletypes_dict, 10,80)
 #test_onehot_window = onehot_from_charmatrix(test_corner_window, lr_tiletypes_dict)
 #test_onehot_window =onehot_from_charmatrix_tilecountspecified(test_corner_window, lr_tiletypes_dict)
 #print(test_onehot_window)
+
+#Generates a Dataframe of one hot representations of all levels from a folder with a specified tile dictionary
+"""
+def get_all_onehot_from_folder(path, tile_dict):
+    file_names = get_filenames_from_folder(path)
+    
+    #Create empty dataframe
+    #NB Height Width and Tile Count are hardcoded here -not ideal
+    colname_list = generate_col_names(22, 32, 8)
+    df_alllevels = pd.DataFrame(columns = colname_list)
+    #print(df_alllevels)
+
+    #Loop through all levels and add their onehot reps to our dataframe
+    for level in file_names:
+        level_name = os.path.basename(level)
+        char_rep = char_matrix_from_filename(level)
+        onehot_rep = onehot_from_charmatrix(char_rep, tile_dict)
+        flat_rep = np.ndarray.flatten(onehot_rep)
+        df_newlevel = pd.DataFrame(flat_rep.reshape(-1, len(flat_rep)), columns=colname_list)
+        df_alllevels = pd.concat([df_alllevels, df_newlevel])
+        #Hack - Rename all rows with index = '0' (should only be the most recently added) to level_name
+        df_alllevels = df_alllevels.rename(index={0:level_name})
+        #print("Level " + level_name +  "processed")
+
+    
+    return df_alllevels
+"""
+
+#Generates a Dataframe of one hot representations of all levels from a folder with a specified tile dictionary, and specified window size
+"""
+def get_all_onehot_from_folder_size_specified(path, tile_dict, window_height, window_width):
+    file_names = get_filenames_from_folder(path)
+    
+    #Create empty dataframe
+    colname_list = generate_col_names(window_height, window_width, tile_dict["CountOfNumericTileTypes"])
+    df_alllevels = pd.DataFrame(columns = colname_list)
+    #print(df_alllevels)
+
+    #Loop through all levels and add their onehot reps to our dataframe
+    for level in file_names:
+        level_name = os.path.basename(level)
+        char_rep = char_matrix_from_filename(level)
+        char_rep_window = take_window_from_bottomright(char_rep, window_height, tile_dict)
+        onehot_rep = onehot_from_charmatrix(char_rep_window, tile_dict)
+        flat_rep = np.ndarray.flatten(onehot_rep)
+        #df_newlevel = pd.DataFrame(flat_rep.reshape(-1, len(flat_rep)), columns=colname_list)
+        df_newlevel = pd.DataFrame(flat_rep.reshape(-1, len(flat_rep)), columns=colname_list)
+        df_alllevels = pd.concat([df_alllevels, df_newlevel])
+        #df_alllevels = df_alllevels.append(df_newlevel, ignore_index = False)
+        #Hack - Rename all rows with index = '0' (should only be the most recently added) to level_name
+        df_alllevels = df_alllevels.rename(index={0:level_name})
+        #print("Level " + level_name +  "processed")
+
+    
+    return df_alllevels
+"""
+
+#Returns a Dataframe of levels and their values for the top PCs
+#Also returns a dictionionary of  the variance explained by the Top 2 PCs
+"""
+def get_PC_values_from_compiled_onehot(onehot_input):
+    #print(df_levellist)
+
+    #Testing PCA
+    #From: https://towardsdatascience.com/pca-using-python-scikit-learn-e653f8989e60
+    features = onehot_input.columns
+    rownames = onehot_input.index.tolist()
+
+    #print(rownames)
+
+    x = onehot_input.loc[:,features].values
+    x = StandardScaler().fit_transform(x)
+    #print(x)
+
+    pca = PCA(n_components=2)
+
+    components = pca.fit_transform(x)
+
+    print(pca.explained_variance_ratio_)
+
+    principalDf = pd.DataFrame(data = components
+                , index = rownames
+                , columns = ['PC 1', 'PC 2'])
+
+    pc_var_explained = {
+        "PC1": pca.explained_variance_ratio_[0],
+        "PC2": pca.explained_variance_ratio_[1]
+    }
+
+    return (principalDf,pc_var_explained)
+
+"""
+
+"""
+def plot_basic_pca(pca_info):
+    variance_explained = pca_info[1]
+    print(variance_explained)
+    fig = plt.figure(figsize = (8,8))
+    ax = fig.add_subplot(1,1,1) 
+    ax.set_xlabel('Principal Component 1: ' + str("{0:.3%}".format(variance_explained['PC1'])), fontsize = 15)
+    ax.set_ylabel('Principal Component 2: ' + str("{0:.3%}".format(variance_explained['PC2'])), fontsize = 15)
+    ax.set_title('2 component PCA', fontsize = 20)
+    ax.scatter(pca_info[0].loc[:, 'PC 1']
+                , pca_info[0].loc[:, 'PC 2']
+                #, c = color
+                , s = 50)
+
+    #Loop through all rows and annotate the plot with the level names
+    for index in pca_info[0].index.tolist():
+        ax.annotate(index,(pca_info[0].at[index, 'PC 1'],pca_info[0].at[index, 'PC 2']))
+
+    ax.grid()
+    plt.show()
+"""
+
+
+
+"""
+def plot_basic_pca(pca_info):
+    variance_explained = pca_info[1]
+    pca_info_for_each_level = pca_info[0]
+    
+    print(variance_explained)
+    fig = plt.figure(figsize = (8,8))
+    ax = fig.add_subplot(1,1,1) 
+    ax.set_xlabel('Principal Component 1: ' + str("{0:.3%}".format(variance_explained['PC1'])), fontsize = 15)
+    ax.set_ylabel('Principal Component 2: ' + str("{0:.3%}".format(variance_explained['PC2'])), fontsize = 15)
+    ax.set_title('2 component PCA', fontsize = 20)
+    ax.scatter(pca_info[0].loc[:, 'PC 1']
+                , pca_info[0].loc[:, 'PC 2']
+                #, c = color
+                , s = 50)
+
+    #Loop through all rows and annotate the plot with the level names
+    #for datapoint in pca_info[0]:
+    #    ax.annotate(datapoint['level_name'],(datapoint['PC 1'],datapoint['PC 2']))
+
+    for index, row in pca_info_for_each_level.iterrows():
+        #print(row['c1'], row['c2'])
+        ax.annotate(row['level_name'],(row['PC 1'],row['PC 2']))
+
+    ax.grid()
+    plt.show()
+"""
