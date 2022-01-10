@@ -125,20 +125,42 @@ def char_matrix_from_filename(path):
 
 def get_boxoban_leveldict_from_file(file_name):
 
-    completed = False
-    curr_index = 0
-    #Total characters for level name and rep in boxoban files
-    tot_size = 115
-    level_reps = list()
-
+    level_reps = dict()
+    line_counter = 0
+    buffer = list()
     with open(file_name) as file:
         charlist = file.read()
 
-        while not completed:
-            level_reps.append(charlist[curr_index:(curr_index+tot_size)])
-            curr_index+=tot_size
-            if len(charlist)<(curr_index + tot_size):
-                completed = True
+        for char in charlist:
+            #Only append numeric characters if we are on the level name line
+            if (line_counter%12 == 0):
+                if (char.isnumeric()):
+                    buffer.append(char)
+            else:
+                buffer.append(char)
+            #Check if we are on a level name line
+            if (char == '\n'):
+                #Check if we are on a level name line
+                if (line_counter%12 == 0):
+                    print("Level name detected at line: " + str(line_counter))
+                    #print(buffer)
+                    temp_levelname = temp_levelname.join(buffer)
+                    #print(temp_levelname)
+                    buffer.clear()
+                #Check if we are at the end of a level rep. If we are, add it to our dictionary
+                elif ((line_counter+1)%12 == 0):
+                    temp_string_rep =  ""
+                    temp_string_rep = temp_string_rep.join(buffer)
+                    #print("Adding key : " + temp_levelname)
+                    #print("with rep: "+ temp_string_rep) 
+                    level_reps[int(temp_levelname)] = temp_string_rep
+                    temp_levelname = ""
+                    buffer.clear()
+                
+                line_counter+=1
+            
+
+            
 
     return level_reps
 
@@ -398,8 +420,10 @@ def multigenerator_mca(folders_dict,height, width):
 
 #Testing Boxoban
 test_reps = get_boxoban_leveldict_from_file(boxoban_root+ "medium/train/000.txt")
-print(test_reps[707])
-
+print(test_reps.keys())
+testint = 77
+print("Test level: " + str(testint))
+print(test_reps[testint])
 
 #Testing MCA on mario
 #multigenerator_mca(mario_folders_dict,10,80)
