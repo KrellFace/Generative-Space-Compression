@@ -5,7 +5,10 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
+from sklearn.decomposition import TruncatedSVD
+from scipy.sparse import csr_matrix
 import matplotlib.pyplot as plt
+import prince
 
 lr_tiletypes_dict = {
     "CountOfNumericTileTypes" : int(8),
@@ -27,7 +30,7 @@ lr_tiletypes_dict = {
 #All pipe blocks = 3
 #All blocks containing rewards = 4
 
-mario_tiletypes_dict = {
+mario_tiletypes_dict_condensed = {
     "CountOfNumericTileTypes": int(5),
     "-": int(0),
     "M": int(0),
@@ -67,7 +70,22 @@ mario_tiletypes_dict = {
     "]": int(3)
 }
 
+#Dictionary of tiletypes in boxoban, the google deepmind clone of sokoban
+
+boxoban_tiletypes_dict = {
+    "CountOfNumericTileTypes" : int(4),
+    "#" : int(0),
+    "@" : int(1),
+    "$" : int(2),
+    "." : int(3),
+    " " : int(4)
+}
+
 mario_root = 'C:/Users/owith/Documents/External Repositories/Mario-AI-Framework/levels/'
+
+loderunnder_path = "C:/Users/owith/Documents/External Repositories/VGLC/TheVGLC/Lode Runner/Processed/"
+
+boxoban_root = "C:/Users/owith/Documents/External Repositories/boxoban-levels/"
 
 #Dictionary of Mario generator names and respective folders 
 mario_folders_dict = {
@@ -78,17 +96,6 @@ mario_folders_dict = {
     'ORE': (mario_root + 'ore/'),
     'Pattern_Count': (mario_root + 'patternCount/')
 }
-
-loderunnder_path = "C:/Users/owith/Documents/External Repositories/VGLC/TheVGLC/Lode Runner/Processed/"
-
-
-#Define our Level class wrapper
-class Level:
-
-    def __init__(self, l_name, gen_name, char_rep):
-        self.level_name = l_name,
-        self.generator_name = gen_name,
-        self.char_rep = char_rep
 
 
 #Get a 2D character matrix from a level file 
@@ -115,6 +122,30 @@ def char_matrix_from_filename(path):
         output_matrix = np.reshape(charlist_newlinesremoved,(height, width), order = 'C')
         #print("Level processed: "  + path)
         return output_matrix
+
+def get_boxoban_leveldict_from_file(file_name):
+
+    completed = False
+    curr_index = 0
+    #Total characters for level name and rep in boxoban files
+    tot_size = 115
+    level_reps = list()
+
+    with open(file_name) as file:
+        charlist = file.read()
+
+        while not completed:
+            level_reps.append(charlist[curr_index:(curr_index+tot_size)])
+            curr_index+=tot_size
+            if len(charlist)<(curr_index + tot_size):
+                completed = True
+
+    return level_reps
+
+
+
+
+
 
 #Generic method for taking windows from matrices 
 def take_window_from_matrix(input_matrix, top_corner_x, top_corner_y, width, height):
@@ -152,7 +183,7 @@ def onehot_from_charmatrix(input_matrix, tile_dict):
 
 #Generates basic list of column names for 1D one hot grids
 #Each Col name of format: X coord, Y coord and TileType Number
-def generate_col_names(height, width, num_tiletypes):
+def generate_onehot_col_names(height, width, num_tiletypes):
     output = list()
     #Add a default level name column
     #output.append("Level_Name")
@@ -163,6 +194,15 @@ def generate_col_names(height, width, num_tiletypes):
 
     return output
 
+def generate_2dmatrix_col_names(height, width):
+    output = list()
+    #Add a default level name column
+    #output.append("Level_Name")
+    for y in range(height):
+        for x in range(width):
+            output.append(str(y)+","+str(x))
+    return output   
+
 #Returns list of filenames from a folder
 def get_filenames_from_folder(path):
     return glob.glob(path + "*.txt")
@@ -172,7 +212,7 @@ def get_all_onehot_from_folder_size_specified(path, tile_dict, window_height, wi
     file_names = get_filenames_from_folder(path)
     
     #Generate column names
-    colname_list = generate_col_names(window_height, window_width, tile_dict["CountOfNumericTileTypes"])
+    colname_list = generate_onehot_col_names(window_height, window_width, tile_dict["CountOfNumericTileTypes"])
     #colname_list.insert(0, "level_name")
     #df_alllevels = pd.DataFrame(columns = colname_list)
     #print(df_alllevels)
@@ -185,6 +225,29 @@ def get_all_onehot_from_folder_size_specified(path, tile_dict, window_height, wi
         char_rep_window = take_window_from_bottomright(char_rep, window_width, window_height)
         onehot_rep = onehot_from_charmatrix(char_rep_window, tile_dict)
         flat_rep = np.ndarray.flatten(onehot_rep)
+        level_df = pd.DataFrame(flat_rep.reshape(-1, len(flat_rep)), columns=colname_list)
+        level_df.insert(0,"level_name",[level_name])
+        alllevels_df_list.append(level_df)
+        #print(level_df.columns)
+
+    return pd.concat(alllevels_df_list, ignore_index=True)
+
+def get_all_charrep_from_folder_size_specified(path, window_height, window_width):
+    file_names = get_filenames_from_folder(path)
+    
+    #Generate column names
+    colname_list = generate_2dmatrix_col_names(window_height, window_width)
+    #colname_list.insert(0, "level_name")
+    #df_alllevels = pd.DataFrame(columns = colname_list)
+    #print(df_alllevels)
+    alllevels_df_list = []
+
+    #Loop through all levels and add their 2D char representations
+    for level in file_names:
+        level_name = os.path.basename(level)
+        char_rep = char_matrix_from_filename(level)
+        char_rep_window = take_window_from_bottomright(char_rep, window_width, window_height)
+        flat_rep = np.ndarray.flatten(char_rep_window)
         level_df = pd.DataFrame(flat_rep.reshape(-1, len(flat_rep)), columns=colname_list)
         level_df.insert(0,"level_name",[level_name])
         alllevels_df_list.append(level_df)
@@ -208,7 +271,7 @@ def get_PC_values_from_compiled_onehot(onehot_input):
 
     pca = PCA(n_components=2)
     components = pca.fit_transform(x)
-    print(pca.explained_variance_ratio_)
+    #print(pca.explained_variance_ratio_)
 
     principalDf = pd.DataFrame(data = components
                 , columns = ['PC 1', 'PC 2'])
@@ -225,6 +288,7 @@ def get_PC_values_from_compiled_onehot(onehot_input):
 def plot_pca(pca_info, gen_names=[]):
     variance_explained = pca_info[1]
     pca_info_for_each_level = pca_info[0]
+    print("Variance explained of plotted PCA")
     print(variance_explained)
     fig = plt.figure(figsize = (8,8))
     ax = fig.add_subplot(1,1,1) 
@@ -259,6 +323,7 @@ def plot_pca(pca_info, gen_names=[]):
     plt.show()
 
 #Retrieve multiple folders worth of levels from different generators to simultaneously analyse
+#Runs Principal Component Analysis on onehot matrix versions of game levels
 def multigenerator_pca_analysis(folders_dict,tile_dict,height, width):
     #Storage for our compiled dataframe from all folders
     output_dfs = []
@@ -275,17 +340,119 @@ def multigenerator_pca_analysis(folders_dict,tile_dict,height, width):
 
     gen_name_list = all_levels_onehot['Generator_Name'].tolist()
     pca_analysis = get_PC_values_from_compiled_onehot(all_levels_onehot.drop('Generator_Name', axis=1))
-    #pc_variance_explained = pca_analysis[1]
-    #pca_df_with_generator_names = pd.concat([pca_analysis[0], all_levels_onehot[['Generator_Name']]], axis = 1)
+    
+    #Readding the name of the generator for each level to the list of all levels and their PCs
     pca_analysis[0]['Generator_Name'] = gen_name_list
 
     #plot_pca_with_generator_name([pca_df_with_generator_names,pc_variance_explained], generator_names)
     plot_pca(pca_analysis, generator_names)
 
+#Runs singular value decomposition on onehot representations of game levels
+def multigenerator_svd(folders_dict,tile_dict,height, width):
+    #Storage for our compiled dataframe from all folders
+    output_dfs = []
+    generator_names =[]
+    for folder in folders_dict:
+        #Get all one for for specific folder
+        current_set = get_all_onehot_from_folder_size_specified(folders_dict[folder], tile_dict,  height, width)
+        #print("Curr set type: " + current_set.dtype)
+        current_set['Generator_Name'] =  folder
+        #print("Curr set type: " + current_set.dtype)
+        generator_names.append(folder)
+        output_dfs.append(current_set)
+    all_levels_onehot =  pd.concat(output_dfs, ignore_index=False)
+
+    only_cell_columns = all_levels_onehot.drop(['level_name','Generator_Name'], axis = 1)
+
+    svd = TruncatedSVD(n_components=2, n_iter=7, random_state=42)
+
+    svd.fit(only_cell_columns)
+    print("Mario SVD Explained Variance Ratio Sum:")
+    print(svd.explained_variance_ratio_)
+
+
+def multigenerator_mca(folders_dict,height, width):
+    #Storage for our compiled dataframe from all folders
+    output_dfs = []
+    generator_names =[]
+    for folder in folders_dict:
+        #Get all one for for specific folder
+        current_set = get_all_charrep_from_folder_size_specified(folders_dict[folder], height, width)
+        #print("Curr set type: " + current_set.dtype)
+        current_set['Generator_Name'] =  folder
+        #print("Curr set type: " + current_set.dtype)
+        generator_names.append(folder)
+        output_dfs.append(current_set)
+    all_levels_char_df =  pd.concat(output_dfs, ignore_index=False)
+
+    gen_name_list = all_levels_char_df['Generator_Name'].tolist()
+    only_cell_columns = all_levels_char_df.drop(['level_name','Generator_Name'], axis = 1)
+
+    mca = prince.MCA()
+
+    mca = mca.fit(only_cell_columns)
+    print("Mario MCA Explained interia:")
+    print(mca.explained_inertia_)
+
+
+
+#Testing Boxoban
+test_reps = get_boxoban_leveldict_from_file(boxoban_root+ "medium/train/000.txt")
+print(test_reps[707])
+
+
+#Testing MCA on mario
+#multigenerator_mca(mario_folders_dict,10,80)
+
+#Testing SVD on mario
+#multigenerator_svd(mario_folders_dict,mario_tiletypes_dict_condensed ,10,80)
+
+#TESTING MCA
+#test_csv = pd.read_csv(loderunnder_path +  "level 1.txt")
+#print(test_csv.head())
+
+#test_all_levels = get_all_charrep_from_folder_size_specified(loderunnder_path, 22, 32)
+#print(test_all_levels.head())
+
+#remove_level_col = test_all_levels.drop('level_name', axis = 1)
+
+#mca = prince.MCA()
+
+#mca = mca.fit(remove_level_col)
+#transformed = mca.transform(remove_level_col)
+#print("MCA Explained interia:")
+#print(mca.explained_inertia_)
+
+#Comparing MCA loderunner results to PCA
+#df_alt_levellist = get_all_onehot_from_folder_size_specified(loderunnder_path, lr_tiletypes_dict, 22, 32)
+
+#lr_alt_pcainfo = get_PC_values_from_compiled_onehot(df_alt_levellist)
+#print("PCA variance explained :")
+#print(lr_alt_pcainfo[1])
+#plot_pca(lr_alt_pcainfo)
+
+#Comparing MCA loderunner results to PCA
+
+"""
+ax = mca.plot_coordinates(
+     X=remove_level_col,
+     ax=None,
+     figsize=(6, 6),
+     show_row_points=True,
+     row_points_size=10,
+     show_row_labels=False,
+     show_column_points=True,
+     column_points_size=30,
+     show_column_labels=False,
+     legend_n_cols=1
+     )
+plt.show()
+"""
+
 
 #TESTING MARIO PCA
 
-multigenerator_pca_analysis( mario_folders_dict, mario_tiletypes_dict, 10,80)
+#multigenerator_pca_analysis( mario_folders_dict, mario_tiletypes_dict, 10,80)
 
 #TESTING ALT METHODS
 
