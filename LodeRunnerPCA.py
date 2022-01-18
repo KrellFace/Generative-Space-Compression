@@ -70,7 +70,7 @@ boxoban_files_dict = {
 #######################################
 
 #Get a 2D character matrix from a level file 
-def char_matrix_from_filename(path):
+def char_matrix_from_file(path):
     with open(path) as f:
         charlist = f.read()
         width = 0
@@ -93,7 +93,6 @@ def char_matrix_from_filename(path):
 #Custom function for boxoban files as they are stored with multiple in each file
 #Returns a dictionary of level names and associated character matrixes 
 def get_boxoban_leveldict_from_file(file_name):
-
     level_reps = dict()
     line_counter = 0
     buffer = list()
@@ -124,33 +123,33 @@ def get_boxoban_leveldict_from_file(file_name):
             
     return level_reps
 
-def get_leveldict_from_individual_files_in_folder_size_specified(path, window_height, window_width):
+#Get a dictionary (LevelName: LevelRep) from a folder
+def get_leveldict_from_folder(path, window_height, window_width):
     file_names = get_filenames_from_folder(path)
-    
     level_reps = dict()
 
     #Loop through all levels and add their onehot reps to list
     for level in file_names:
         level_name = os.path.basename(level)
-        char_rep = char_matrix_from_filename(level)
+        char_rep = char_matrix_from_file(level)
         char_rep_window = take_window_from_bottomright(char_rep, window_width, window_height)
         level_reps[level_name] = char_rep_window
 
     return level_reps
 
-def get_nested_generator_level_dictionaries_from_folders(folders_dict,height, width):
+#Get a dictionary of dictionarys (FolderName: Level Dict) from a folder dictionary
+def get_leveldicts_from_folder_set(folders_dict,height, width):
     folder_level_dict = dict()
     for folder in folders_dict:
         #Get all one for for specific folder
-        temp_dict = get_leveldict_from_individual_files_in_folder_size_specified(folders_dict[folder], height, width)
+        temp_dict = get_leveldict_from_folder(folders_dict[folder], height, width)
         folder_level_dict[folder] = temp_dict
     return folder_level_dict
 
-def get_nested_generator_level_dictionaries_from_boxoban_files(files_dict,height, width):
+#Get a dictionary of dictionarys (BoxobanFilename: Level Dict) from a Boxoban file
+def get_leveldicts_from_boxoban_files(files_dict,height, width):
     files_level_dict = dict()
     for file in files_dict:
-        #Get all one for for specific folder
-        #temp_dict = get_leveldict_from_individual_files_in_folder_size_specified(folders_dict[folder], height, width)
         temp_dict = get_boxoban_leveldict_from_file(files_dict[file])
         files_level_dict[file] = temp_dict
     return files_level_dict
@@ -177,7 +176,7 @@ def take_window_from_bottomright(input_matrix, width, height):
 #Level processing methods
 
 #Generates a onehot 3D array from a character matrix, using mappings between characters and integers specified in a tile dictionary
-def onehot_from_charmatrix_tilecountspecified(input_matrix, tile_dict, num_tile_type):
+def onehot_from_cm_tiletypecountspecified(input_matrix, tile_dict, num_tile_type):
     #Create our empty 3D matrix to populate
     input_shape = np.shape(input_matrix)
     one_hot = np.zeros((input_shape[0], input_shape[1], num_tile_type))
@@ -192,9 +191,9 @@ def onehot_from_charmatrix_tilecountspecified(input_matrix, tile_dict, num_tile_
 
 #Generates a 3D one hot array, using a dictionary field specifying the number of options 
 def onehot_from_charmatrix(input_matrix, tile_dict):
-    return onehot_from_charmatrix_tilecountspecified(input_matrix, tile_dict, tile_dict['CountOfNumericTileTypes'])
+    return onehot_from_cm_tiletypecountspecified(input_matrix, tile_dict, tile_dict['CountOfNumericTileTypes'])
 
-#For methods like MCA we want compiled dataframes of character representations
+#Generates a dataframe of char representations of levels where each row is a level (used for applying MCA)
 def get_compiled_char_representations_from_level_dict(level_dict, window_height, window_width):
     colname_list = generate_2dmatrix_col_names(window_height, window_width)
     alllevels_df_list = []
@@ -244,6 +243,7 @@ def generate_2dmatrix_col_names(height, width):
 def get_filenames_from_folder(path):
     return glob.glob(path + "*.txt")
 
+#Return a dictionary of coordinates from lists of coordinates 
 def return_coord_dict_fromcoord_lists(names, xcoords, ycoords):
     output_dict = dict()
     for v in range(0, len(names)):
@@ -251,7 +251,7 @@ def return_coord_dict_fromcoord_lists(names, xcoords, ycoords):
     return output_dict
 
 
-#Get most extreme x and y values 
+#Get most extreme x and y values from a dictionary
 def get_extreme_coords(level_coord_dict, extremecount = 5):
     output_dict = dict()
     #Get largest x
@@ -277,7 +277,7 @@ def get_extreme_coords(level_coord_dict, extremecount = 5):
     
     return output_dict
 
-
+#Generate labels of type "String" + n 
 def gen_component_labels_for_n(label, n):
     output_labels = list()
     for x in range (1, n+1):
@@ -292,28 +292,40 @@ def gen_component_labels_for_n(label, n):
 def get_all_onehot_from_folder_size_specified(path, tile_dict, window_height, window_width):
 
     level_dict = dict()
-    level_dict = get_leveldict_from_individual_files_in_folder_size_specified(path, tile_dict, window_height, window_width)
+    level_dict = get_leveldict_from_folder(path, tile_dict, window_height, window_width)
     return get_compiled_onehot_from_leveldict(level_dict)
 
+#Generates a compiled onehot dataframe from a boxoban file
 def get_all_one_hot_boxoban_from_file(path, tile_dict):
      
     level_dict = get_boxoban_leveldict_from_file(path)
     return get_compiled_onehot_from_leveldict(level_dict, tile_dict, 10, 10)
 
+def get_onehot_df_from_gen_and_level_list(generator_levels_dict, tile_dict, height, width):  
+    levelsets=[]
+    for generator in generator_levels_dict:
+        #Get all one for for specific folder
+        level_dict = generator_levels_dict[generator]
+        compiled_onehot_set = get_compiled_onehot_from_leveldict(level_dict, tile_dict, height, width)
+        compiled_onehot_set['Generator_Name'] =  generator
+        levelsets.append(compiled_onehot_set)
+    return pd.concat(levelsets, ignore_index=False)
 
 #########################
 #Graphing and Visualisation Methods
 
-def plot_pca(pca_info, gen_names=[]):
-    variance_explained = pca_info[1]
-    pca_info_for_each_level = pca_info[0]
-    print("Variance explained of plotted PCA")
-    print(variance_explained)
+def plot_compressed_data(toplot, var_exp, algoname, col1name, col2name, gen_names=[],):
+    print("Variance explained of plotted" + algoname)
+    print(var_exp)
     fig = plt.figure(figsize = (8,8))
     ax = fig.add_subplot(1,1,1) 
-    ax.set_xlabel('Principal Component 1: ' + str("{0:.3%}".format(variance_explained['PC1'])), fontsize = 15)
-    ax.set_ylabel('Principal Component 2: ' + str("{0:.3%}".format(variance_explained['PC2'])), fontsize = 15)
-    ax.set_title('2 component PCA', fontsize = 20)
+    if len(var_exp)>0:
+        ax.set_xlabel(algoname + ' 1: ' + str("{0:.3%}".format(var_exp[0])), fontsize = 15)
+        ax.set_ylabel(algoname +' 2: ' + str("{0:.3%}".format(var_exp[1])), fontsize = 15)
+    else:
+        ax.set_xlabel(algoname + ' 1', fontsize = 15)
+        ax.set_ylabel(algoname +' 2', fontsize = 15)        
+    ax.set_title('2 component ' + algoname, fontsize = 20)
 
     #Color each generators points differently if we are running for multiple alternatives
     if len(gen_names)>0:
@@ -321,146 +333,26 @@ def plot_pca(pca_info, gen_names=[]):
             #Generate a random color for the generator
             rgb = np.random.rand(3,)
             #Limit our targets to just current generator
-            to_keep = pca_info_for_each_level['Generator_Name'] == generator
-            ax.scatter(pca_info_for_each_level.loc[to_keep, 'PC 1']
-                        , pca_info_for_each_level.loc[to_keep, 'PC 2']
+            to_keep = toplot['Generator_Name'] == generator
+            ax.scatter(toplot.loc[to_keep, col1name]
+                        , toplot.loc[to_keep, col2name]
                         , c = [rgb]
                         , s = 50)
-    #For single generator PCA
+    #For single generator
     else:
-        ax.scatter(pca_info[0].loc[:, 'PC 1']
-                    , pca_info[0].loc[:, 'PC 2']
+        ax.scatter(toplot[0].loc[:, col1name]
+                    , toplot[0].loc[:, col2name]
                     #, c = color
                     , s = 50)       
 
     #Get the most outlying values to label
-    coord_dict = return_coord_dict_fromcoord_lists(pca_info_for_each_level['level_name'].tolist(), pca_info_for_each_level['PC 1'].tolist(), pca_info_for_each_level['PC 2'].tolist())
-    extreme_coords_for_labeling = get_extreme_coords(coord_dict, 40)
+    coord_dict = return_coord_dict_fromcoord_lists(toplot['level_name'].tolist(), toplot[col1name].tolist(), toplot[col2name].tolist())
+    extreme_coords_for_labeling = get_extreme_coords(coord_dict, 10)
 
     for key in extreme_coords_for_labeling:
         ax.annotate(extreme_coords_for_labeling[key][0], (extreme_coords_for_labeling[key][1],extreme_coords_for_labeling[key][2] ))
     #for index, row in pca_info_for_each_level.iterrows():
     #    ax.annotate(row['level_name'],(row['PC 1'],row['PC 2']))
-
-    ax.legend(gen_names)
-    ax.grid()
-    plt.show()
-
-def plot_mca(mca_info, gen_names=[]):
-    intertia_explained = mca_info[1].explained_inertia_
-    mca_info_for_each_level = mca_info[0]
-    print("Variance explained of plotted MCA")
-    print(intertia_explained)
-    fig = plt.figure(figsize = (8,8))
-    ax = fig.add_subplot(1,1,1) 
-    ax.set_xlabel('MCA PC 1: ' + str("{0:.3%}".format(intertia_explained[0])), fontsize = 15)
-    ax.set_ylabel('MCA PC 2: ' + str("{0:.3%}".format(intertia_explained[1])), fontsize = 15)
-    ax.set_title('2 component MCA', fontsize = 20)
-
-    #Color each generators points differently if we are running for multiple alternatives
-    if len(gen_names)>0:
-        for generator in gen_names:
-            #Generate a random color for the generator
-            rgb = np.random.rand(3,)
-            #Limit our targets to just current generator
-            to_keep = mca_info_for_each_level['Generator_Name'] == generator
-            ax.scatter(mca_info_for_each_level.loc[to_keep, 'MCA-PC1']
-                        , mca_info_for_each_level.loc[to_keep, 'MCA-PC2']
-                        , c = [rgb]
-                        , s = 50)
-    #For single generator PCA
-    else:
-        ax.scatter(mca_info_for_each_level.loc[:, 'MCA-PC1']
-                    , mca_info_for_each_level.loc[:, 'MCA-PC2']
-                    #, c = color
-                    , s = 50)       
-
-    coord_dict = return_coord_dict_fromcoord_lists(mca_info_for_each_level['level_name'].tolist(), mca_info_for_each_level['MCA-PC1'].tolist(), mca_info_for_each_level['MCA-PC2'].tolist())
-    extreme_coords_for_labeling = get_extreme_coords(coord_dict)
-
-    for key in extreme_coords_for_labeling:
-        ax.annotate(extreme_coords_for_labeling[key][0], (extreme_coords_for_labeling[key][1],extreme_coords_for_labeling[key][2]))
-
-    #for index, row in mca_info_for_each_level.iterrows():
-    #    ax.annotate(row['level_name'],(row['MCA-PC1'],row['MCA-PC2']))
-
-    ax.legend(gen_names)
-    ax.grid()
-    plt.show()
-
-def plot_svd(toplot, gen_names = []):
-    svdinfo = toplot[1]
-    #svd_var_exp_ratio = svdinfo.explained_variance_ratio_
-    svd_var_exp_ratio = svdinfo.explained_variance_ratio_
-    svd_projected_on_levels = toplot[0]
-    print("Variance explained of plotted SVD")
-    print(svd_var_exp_ratio)
-    fig = plt.figure(figsize = (8,8))
-    ax = fig.add_subplot(1,1,1) 
-    ax.set_xlabel('SVD 1: ' + str("{0:.3%}".format(svd_var_exp_ratio[0])), fontsize = 15)
-    ax.set_ylabel('SVD 2: ' + str("{0:.3%}".format(svd_var_exp_ratio[1])), fontsize = 15)
-    ax.set_title('2 Component Truncated SVD', fontsize = 20)
-
-    #Color each generators points differently if we are running for multiple alternatives
-    if len(gen_names)>0:
-        for generator in gen_names:
-            #Generate a random color for the generator
-            rgb = np.random.rand(3,)
-            #Limit our targets to just current generator
-            to_keep = svd_projected_on_levels['Generator_Name'] == generator
-            ax.scatter(svd_projected_on_levels.loc[to_keep, 'SVD 1']
-                        , svd_projected_on_levels.loc[to_keep, 'SVD 2']
-                        , c = [rgb]
-                        , s = 50)
-    #For single generator SVD
-    else:
-        ax.scatter(svd_projected_on_levels['SVD 1']
-                    , svd_projected_on_levels['SVD 2']
-                    #, c = color
-                    , s = 50)       
-
-    for index, row in svd_projected_on_levels.iterrows():
-        #print(row['c1'], row['c2'])
-        ax.annotate(row['level_name'],(row['SVD 1'],row['SVD 2']))
-
-    ax.legend(gen_names)
-    ax.grid()
-    plt.show()
-
-def plot_tsne(toplot, gen_names = []):
-    tsneinfo = toplot[1]
-    #svd_var_exp_ratio = svdinfo.explained_variance_ratio_
-    #svd_var_exp_ratio = svdinfo.explained_variance_ratio_
-    tsne_projected_on_levels = toplot[0]
-    #print("Variance explained of plotted SVD")
-    #print(svd_var_exp_ratio)
-    fig = plt.figure(figsize = (8,8))
-    ax = fig.add_subplot(1,1,1) 
-    ax.set_xlabel('TSNE 1') #+ str("{0:.3%}".format(svd_var_exp_ratio[0])), fontsize = 15)
-    ax.set_ylabel('TSNE 2') #+ str("{0:.3%}".format(svd_var_exp_ratio[1])), fontsize = 15)
-    ax.set_title('2 Component TSNE ', fontsize = 20)
-
-    #Color each generators points differently if we are running for multiple alternatives
-    if len(gen_names)>0:
-        for generator in gen_names:
-            #Generate a random color for the generator
-            rgb = np.random.rand(3,)
-            #Limit our targets to just current generator
-            to_keep = tsne_projected_on_levels['Generator_Name'] == generator
-            ax.scatter(tsne_projected_on_levels.loc[to_keep, 'TSNE 1']
-                        , tsne_projected_on_levels.loc[to_keep, 'TSNE 2']
-                        , c = [rgb]
-                        , s = 50)
-    #For single generator SVD
-    else:
-        ax.scatter(tsne_projected_on_levels['TSNE 1']
-                    , tsne_projected_on_levels['TSNE 2']
-                    #, c = color
-                    , s = 50)       
-
-    for index, row in tsne_projected_on_levels.iterrows():
-        #print(row['c1'], row['c2'])
-        ax.annotate(row['level_name'],(row['TSNE 1'],row['TSNE 2']))
 
     ax.legend(gen_names)
     ax.grid()
@@ -486,12 +378,8 @@ def get_PC_values_from_compiled_onehot(onehot_input, conponent_count = 2):
                 , columns = pc_labels)
 
     principalDf['level_name'] = levelnames       
-    
-    pc_var_explained = {
-        "PC1": pca.explained_variance_ratio_[0],
-        "PC2": pca.explained_variance_ratio_[1]
-    }
-    return (principalDf,pc_var_explained)
+
+    return (principalDf,pca.explained_variance_ratio_)
 
 def get_mca_values_from_compiled_char_reps(charrep_input, conponent_count = 2):
     levelnames = charrep_input['level_name'].tolist()
@@ -507,18 +395,15 @@ def get_mca_values_from_compiled_char_reps(charrep_input, conponent_count = 2):
     truncmcaDF = pd.DataFrame()
 
     for x in range(0, conponent_count):
-        truncmcaDF[('MCA-PC' + str(x))] = levels_mcaprojected[x]
-    #truncmcaDF['MCA-PC1'] = levels_mcaprojected[0]
-    #truncmcaDF['MCA-PC2'] = levels_mcaprojected[1]
+        truncmcaDF[('MCA-PC' + str(x+1))] = levels_mcaprojected[x]
+
     truncmcaDF['level_name'] = levelnames
-    return (truncmcaDF, mca)
+    return (truncmcaDF, mca.explained_inertia_)
 
 
 def get_projected_truc_svd_values_from_compiled_onehot(onehot_input, conponent_count = 2):
     levelnames = onehot_input['level_name'].tolist()
     levelrep_columns = onehot_input.drop(['level_name'], axis = 1)
-    #print("Level rep head: ")
-    #print(levelrep_columns.head())
 
     svd = TruncatedSVD(n_components=conponent_count, n_iter=7, random_state=42)
 
@@ -537,10 +422,8 @@ def get_projected_truc_svd_values_from_compiled_onehot(onehot_input, conponent_c
     for x in range(0, conponent_count):
         truncsvdDF[('SVD ' + str(x+1))] = levels_svdprojected[:,x]
 
-    #truncsvdDF['SVD 1'] = levels_svdprojected[:,0]
-    #truncsvdDF['SVD 2'] = levels_svdprojected[:,1]
     truncsvdDF['level_name'] = levelnames
-    return (truncsvdDF, svd)
+    return (truncsvdDF, svd.explained_variance_ratio_)
 
 def get_tsne_projection_from_onehot(onehot_input, conponent_count = 2):
     levelnames = onehot_input['level_name'].tolist()
@@ -553,12 +436,9 @@ def get_tsne_projection_from_onehot(onehot_input, conponent_count = 2):
 
     print("Reprojected shape: " + str(levels_tsneprojected.shape))
 
-
     trunctsneDF = pd.DataFrame()
     for x in range(0, conponent_count):
         trunctsneDF[('TSNE ' + str(x+1))] = levels_tsneprojected[:,x]
-    #trunctsneDF['TSNE 1'] = levels_tsneprojected[:,0]
-    #trunctsneDF['TSNE 2'] = levels_tsneprojected[:,1]
     trunctsneDF['level_name'] = levelnames
     return (trunctsneDF, tsne)
 
@@ -569,64 +449,35 @@ def get_tsne_projection_from_onehot(onehot_input, conponent_count = 2):
 #Runs Principal Component Analysis on onehot matrix versions of game levels
 def multigenerator_pca_analysis(generator_levels_dict,tile_dict,height, width, component_count = 2):
     
-    #Storage for our compiled dataframe from all folders
-    output_dfs = []
-    for generator in generator_levels_dict:
-        #Get all one for for specific folder
-        level_dict = generator_levels_dict[generator]
-        compiled_onehot_set = get_compiled_onehot_from_leveldict(level_dict, tile_dict, height, width)
-        compiled_onehot_set['Generator_Name'] =  generator
-        output_dfs.append(compiled_onehot_set)
-    all_levels_onehot =  pd.concat(output_dfs, ignore_index=False)
+    all_levels_onehot = get_onehot_df_from_gen_and_level_list(generator_levels_dict, tile_dict, height, width)
 
     gen_name_list = all_levels_onehot['Generator_Name'].tolist()
     pca_analysis = get_PC_values_from_compiled_onehot(all_levels_onehot.drop('Generator_Name', axis=1), component_count)
     
     #Readding the name of the generator for each level to the list of all levels and their PCs
     pca_analysis[0]['Generator_Name'] = gen_name_list
-    plot_pca(pca_analysis, list(generator_levels_dict.keys()))
+    plot_compressed_data(pca_analysis[0],pca_analysis[1], 'PCA', 'PC 1', 'PC 2', list(generator_levels_dict.keys()))
     return pca_analysis[0]
 
 
 #Runs singular value decomposition on onehot representations of game levels
 def multigenerator_svd(generator_levels_dict,tile_dict,height, width, component_count = 2):
-    
-    #Storage for our compiled dataframe from all folders
-    output_dfs = []
-    for generator in generator_levels_dict:
-        #Get all one for for specific folder
-        level_dict = generator_levels_dict[generator]
-        compiled_onehot_set = get_compiled_onehot_from_leveldict(level_dict, tile_dict, height, width)
-        compiled_onehot_set['Generator_Name'] =  generator
-        output_dfs.append(compiled_onehot_set)
-    all_levels_onehot =  pd.concat(output_dfs, ignore_index=False)
-
+    all_levels_onehot = get_onehot_df_from_gen_and_level_list(generator_levels_dict, tile_dict, height, width)
     gen_name_list = all_levels_onehot['Generator_Name'].tolist()
 
     svd_info = get_projected_truc_svd_values_from_compiled_onehot(all_levels_onehot.drop('Generator_Name', axis=1), component_count)
     #Readding the name of the generator for each level to the list of all levels and their PCs
     svd_info[0]['Generator_Name'] = gen_name_list
-    plot_svd(svd_info, list(generator_levels_dict.keys()))
+    plot_compressed_data(svd_info[0], svd_info[1], 'SVD', 'SVD 1', 'SVD 2', list(generator_levels_dict.keys()))
+    return svd_info[0]
 
 def multigenerator_tsne(generator_levels_dict,tile_dict,height, width):
-    
-    #Storage for our compiled dataframe from all folders
-    output_dfs = []
-    for generator in generator_levels_dict:
-        #Get all one for for specific folder
-        level_dict = generator_levels_dict[generator]
-        compiled_onehot_set = get_compiled_onehot_from_leveldict(level_dict, tile_dict, height, width)
-        compiled_onehot_set['Generator_Name'] =  generator
-        output_dfs.append(compiled_onehot_set)
-    all_levels_onehot =  pd.concat(output_dfs, ignore_index=False)
-
+    all_levels_onehot = get_onehot_df_from_gen_and_level_list(generator_levels_dict, tile_dict, height, width)
     gen_name_list = all_levels_onehot['Generator_Name'].tolist()
-
     tsne_info = get_tsne_projection_from_onehot(all_levels_onehot.drop('Generator_Name', axis=1))
     #Readding the name of the generator for each level to the list of all levels and their PCs
     tsne_info[0]['Generator_Name'] = gen_name_list
-    #print('TSNE KL divergence : ' + str(tsne_info[1].kl_divergence_))
-    plot_tsne(tsne_info, list(generator_levels_dict.keys()))
+    plot_compressed_data(tsne_info[0], tsne_info[1], 'T-SNE', 'TSNE 1', 'TSNE 2', list(generator_levels_dict.keys()))
 
 def multigenerator_mca(generator_levels_dict, height, width, conponent_count = 2):
     #Storage for our compiled dataframe from all folders
@@ -644,28 +495,75 @@ def multigenerator_mca(generator_levels_dict, height, width, conponent_count = 2
     #Readding the name of the generator for each level to the list of all levels and their PCs
     mca_info[0]['Generator_Name'] = gen_name_list
 
-    plot_mca(mca_info, list(generator_levels_dict.keys()))
+    plot_compressed_data(mca_info[0], mca_info[1], 'MCA', 'MCA-PC1', 'MCA-PC2', list(generator_levels_dict.keys()))
+    return mca_info[0]
+
+def apply_tsne_to_compressed_output(file_levels_dict, tiletypes_dict, algotype, height, width, initial_conponents):
+    initial_compression = pd.DataFrame()
+    if (algotype == 'PCA'):
+        initial_compression = multigenerator_pca_analysis(file_levels_dict, tiletypes_dict, height, width, initial_conponents)
+    elif (algotype == 'SVD'):
+        initial_compression = multigenerator_svd(file_levels_dict, tiletypes_dict, height, width, initial_conponents)
+    elif (algotype == 'MCA'):
+        initial_compression = multigenerator_mca(file_levels_dict, height, width, initial_conponents)
+    else:
+        print("Algorithm not found, please check your call")
+        return
+    gen_name_list = initial_compression['Generator_Name'].tolist()
+    tsneinfo = get_tsne_projection_from_onehot(initial_compression.drop('Generator_Name', axis=1))
+    tsneinfo[0]['Generator_Name'] = gen_name_list
+    #plot_tsne(tsneinfo, list(file_levels_dict.keys()))
+    plot_compressed_data(tsneinfo[0],[], 'T-SNE', 'TSNE 1', 'TSNE 2', list(file_levels_dict.keys()))
+
+#Testing TSNE wrapper function
+#test_width = 80
+#test_height = 10
+#test_comp = 2
+#mario_test_file_dict = get_leveldicts_from_folder_set(mario_folders_dict, test_height, test_width)
+#apply_tsne_to_compressed_output(mario_test_file_dict, mario_tiletypes_dict_condensed, 'PCA', test_height, test_width, test_comp)
+#apply_tsne_to_compressed_output(mario_test_file_dict, mario_tiletypes_dict_condensed, 'SVD', test_height, test_width, test_comp)
+#apply_tsne_to_compressed_output(mario_test_file_dict, mario_tiletypes_dict_condensed, 'MCA', test_height, test_width, test_comp)
+
+#Testing all TSNE wrapper methods on boxoban
+#test_width = 22
+#test_height = 32
+#test_comp = 10
+#bbn_test_file_dict = get_leveldict_from_folder(, test_height, test_width)
+#apply_tsne_to_compressed_output(bbn_test_file_dict, boxoban_tiletypes_dict, 'PCA', test_height, test_width, test_comp)
+#apply_tsne_to_compressed_output(bbn_test_file_dict, boxoban_tiletypes_dict, 'SVD', test_height, test_width, test_comp)
+#apply_tsne_to_compressed_output(bbn_test_file_dict, boxoban_tiletypes_dict, 'MCA', test_height, test_width, test_comp)
+
+#Testing TSNE wrapper functionS on LodeRunner
+#test_width = 22
+#test_height = 32
+#test_comp = 10
+#lr_levels_dict = get_leveldict_from_folder(loderunnder_path, test_width, test_height)
+#test_dict = dict()
+#test_dict['Default'] = lr_levels_dict
+#apply_tsne_to_compressed_output(test_dict, lr_tiletypes_dict, 'PCA', test_height, test_width, test_comp)
+#apply_tsne_to_compressed_output(test_dict, lr_tiletypes_dict, 'SVD', test_height, test_width, test_comp)
+#apply_tsne_to_compressed_output(test_dict, lr_tiletypes_dict, 'MCA', test_height, test_width, test_comp)
 
 #Testing TSNE on output from others
-boxoban_file_levels_dict = get_nested_generator_level_dictionaries_from_boxoban_files(boxoban_files_dict, 10, 10)
-pca50 = multigenerator_pca_analysis(boxoban_file_levels_dict, boxoban_tiletypes_dict, 10, 10, 10)
-gen_name_list = pca50['Generator_Name'].tolist()
-tsneinfo = get_tsne_projection_from_onehot(pca50.drop('Generator_Name', axis=1))
-tsneinfo[0]['Generator_Name'] = gen_name_list
-plot_tsne(tsneinfo, list(boxoban_files_dict.keys()))
+#boxoban_file_levels_dict = get_leveldicts_from_boxoban_files(boxoban_files_dict, 10, 10)
+#pca50 = multigenerator_pca_analysis(boxoban_file_levels_dict, boxoban_tiletypes_dict, 10, 10, 10)
+#gen_name_list = pca50['Generator_Name'].tolist()
+#tsneinfo = get_tsne_projection_from_onehot(pca50.drop('Generator_Name', axis=1))
+#tsneinfo[0]['Generator_Name'] = gen_name_list
+#plot_tsne(tsneinfo, list(boxoban_files_dict.keys()))
 
 #Testing TSNE
-#boxoban_file_levels_dict = get_nested_generator_level_dictionaries_from_boxoban_files(boxoban_files_dict, 10, 10)
+#boxoban_file_levels_dict = get_leveldicts_from_boxoban_files(boxoban_files_dict, 10, 10)
 #multigenerator_tsne(boxoban_file_levels_dict, boxoban_tiletypes_dict, 10, 10)
 
 #Testing All methods on Mario
-#generator_levels_dict = get_nested_generator_level_dictionaries_from_folders(mario_folders_dict, 10, 80)
+#generator_levels_dict = get_leveldicts_from_folder_set(mario_folders_dict, 10, 80)
 #multigenerator_pca_analysis(generator_levels_dict, mario_tiletypes_dict_condensed, 10, 80)
 #multigenerator_svd(generator_levels_dict, mario_tiletypes_dict_condensed, 10, 80)
 #multigenerator_mca(generator_levels_dict,10,80)
 
 #Testing ALL methods on Boxoban
-boxoban_file_levels_dict = get_nested_generator_level_dictionaries_from_boxoban_files(boxoban_files_dict, 10, 10)
+#boxoban_file_levels_dict = get_leveldicts_from_boxoban_files(boxoban_files_dict, 10, 10)
 #multigenerator_svd(boxoban_file_levels_dict, boxoban_tiletypes_dict, 10, 10, 10)
 #multigenerator_mca(boxoban_file_levels_dict,10,10, 5)
 #multigenerator_tsne(boxoban_file_levels_dict, boxoban_tiletypes_dict, 10,10)
@@ -673,7 +571,7 @@ boxoban_file_levels_dict = get_nested_generator_level_dictionaries_from_boxoban_
 
 
 #Testing all methods on Loderunner
-#lr_levels_dict = get_leveldict_from_individual_files_in_folder_size_specified(loderunnder_path, 22, 32)
+#lr_levels_dict = get_leveldict_from_folder(loderunnder_path, 22, 32)
 #test_dict = dict()
 #test_dict['Default'] = lr_levels_dict
 #multigenerator_pca_analysis(test_dict, lr_tiletypes_dict,  22, 32)
