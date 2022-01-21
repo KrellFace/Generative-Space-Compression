@@ -12,6 +12,15 @@ class LevelWrapper:
     
     onehot_rep =  None
 
+    PC1Val = None
+    PC2Val = None 
+
+    MCA1Val = None
+    MCA2Val = None
+
+    SVD1Val = None
+    SVD2Val = None
+
     def __init__(self, name, generator_name, char_rep):
         self.data = []
         self.name = name
