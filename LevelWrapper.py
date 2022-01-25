@@ -1,4 +1,5 @@
-
+from abc import abstractmethod
+from pickle import NONE
 
 #Wrapper class for game levels. Containing all relevant information about them including their representations and attributes
 class LevelWrapper:
@@ -7,6 +8,9 @@ class LevelWrapper:
     name = ''
     #Parent Generator
     generator_name= ''
+    
+    #level_type = ''
+
     #Stores the character matrix representation of the level
     char_rep = None
     
@@ -21,14 +25,33 @@ class LevelWrapper:
     SVD1Val = None
     SVD2Val = None
 
+    TSNE_PCA1 = None
+    TSNE_PCA2 = None
+
+    TSNE_MCA1 = None
+    TSNE_MCA2 = None
+
+    TSNE_SVD1 = None
+    TSNE_SVD2 = None
+
+
     def __init__(self, name, generator_name, char_rep):
         self.data = []
         self.name = name
         self.generator_name = generator_name
         self.char_rep = char_rep
+
+        self.calc_behavioral_features(char_rep)
     
     def print_self(self):
         print("Level Name = " + self.name)
         print("Level Char Rep: ")
         print(self.char_rep)
+
+
+    
+    
+    @abstractmethod
+    def calc_behavioral_features(self, char_rep):
+        pass
 
