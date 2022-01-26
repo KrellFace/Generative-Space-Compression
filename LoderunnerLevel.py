@@ -11,6 +11,11 @@ class LoderunnerLevel(LevelWrapper):
         #self.calc_behavioral_features(char_rep)
 
     def calc_behavioral_features(self, char_rep):
-        return 
+        temp_emptyspace = 0        
+        for x in range(0, len(char_rep)):
+            for y in range(0,len(char_rep[0])):
+                if char_rep[x][y]=='.':
+                    temp_emptyspace+=1
+        self.empty_space = temp_emptyspace
 
 
