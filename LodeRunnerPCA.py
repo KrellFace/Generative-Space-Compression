@@ -3,6 +3,7 @@ from math import nan
 from enum import Enum
 import os
 import math
+from turtle import distance
 #from statistics import LinearRegression
 import matplotlib
 from datetime import datetime
@@ -13,6 +14,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.decomposition import SparsePCA
 from sklearn.decomposition import TruncatedSVD
+from sklearn.decomposition import KernelPCA
+from sklearn import linear_model
 from sklearn.manifold import TSNE
 from scipy.stats import pearsonr
 from scipy.stats import spearmanr
@@ -21,6 +24,7 @@ import matplotlib.pyplot as plt
 import prince
 import itertools as it 
 import timeit
+import copy
 from io import BytesIO
 from csv import writer 
 from LevelWrapper import LevelWrapper
@@ -41,10 +45,12 @@ class CompressionType(Enum):
     PCATSNE = 5,
     MCATSNE = 6,
     SVDTSNE = 7,
-    SparsePCA = 8
+    SparsePCA = 8,
+    KernelPCA = 9
 
-
-
+class BehavioralCharacteristics(Enum):
+    EmptySpace = 1,
+    EnemyCount = 2
 
 lr_tiletypes_dict = {
     "CountOfNumericTileTypes" : int(8),
@@ -103,7 +109,9 @@ boxoban_files_dict = {
     '000 - Medium' : (boxoban_root + 'medium/train/000.txt'),
     '001 - Medium' : (boxoban_root + 'medium/train/001.txt'),
     '000 - Hard' : (boxoban_root + 'hard/000.txt'),
-    '001 - Hard' : (boxoban_root + 'hard/001.txt')
+    '001 - Hard' : (boxoban_root + 'hard/001.txt'),
+    '000 - Unfiltered': (boxoban_root + 'unfiltered/train/000.txt'),
+    '001 - Unfiltered': (boxoban_root + 'unfiltered/train/001.txt')
 }
 
 color_dict = dict({0:'brown',
@@ -111,7 +119,8 @@ color_dict = dict({0:'brown',
                 2: 'orange',
                 3: 'red',
                 4: 'dodgerblue',
-                5: 'darkmagenta'})
+                5: 'darkmagenta',
+                6: 'lightcoral'})
 
 #######################################
 #FILE IMPORTING METHODS
@@ -228,6 +237,20 @@ def take_window_from_bottomright(input_matrix, width, height):
     x_corner = input_matrix.shape[1] - width
     y_corner = input_matrix.shape[0] - height
     return (take_window_from_matrix(input_matrix, x_corner, y_corner, width, height))
+
+def get_linear_correlations_from_df(df, algolist, bclist):
+
+    dists_list = gen_distnames_for_algos(algolist)
+
+    for compression_dist in dists_list:
+        vals = df[[compression_dist]].values.reshape(-1)
+        for bc in bclist:
+            bcvals = df[[bc]].values.reshape(-1)
+
+            pcacorr, pcapval = pearsonr(vals, bcvals)
+            print('Pearsons correlation on ' + compression_dist + ' : %.3f' % pcacorr + " with P Value: " + str("{:.2f}".format(pcapval)))
+            pcacspear, sppcapval = spearmanr(vals, bcvals)
+            print('Spearmans correlation on ' + compression_dist + ' : %.3f' % pcacspear + " with P Value: " + str("{:.2f}".format(sppcapval)))
 
 
 ############################################
@@ -385,11 +408,59 @@ def generate_levelwrapper_for_game(game, level_name, folder_key, char_rep):
     elif (game == Game.Loderunner):
         return LoderunnerLevel(level_name, folder_key, char_rep)
 
-    
+#This is a hack, should be in a clever datastructure
+def get_feature_names_for_compression_type(algotype):
+    if (algotype == CompressionType.PCA):
+        return ['PC1Val', 'PC2Val']
+    elif (algotype == CompressionType.MCA):
+        return ['MCA1Val', 'MCA2Val']
+    elif (algotype == CompressionType.TSNE):
+        return ['TSNEVal1', 'TSNEVal2']    
+    elif (algotype == CompressionType.KernelPCA):
+        return ['KernelPCA1', 'KernelPCA2']
+    elif (algotype == CompressionType.SVD):
+        return ['SVD1Val', 'SVD2Val']
+
+def get_distances_for_algolist_for_levelpair(level1, level2, algolist):
+    distances = []
+    for algo in algolist:
+        if (algo == CompressionType.PCA):
+            distances.append(calculateDistance(level1.PC1Val, level1.PC2Val, level2.PC1Val, level2.PC2Val))
+        elif (algo == CompressionType.SVD):
+            distances.append(calculateDistance(level1.SVD1Val, level1.SVD2Val, level2.SVD1Val, level2.SVD2Val))
+        elif (algo == CompressionType.MCA):
+            distances.append(calculateDistance(level1.MCA1Val, level1.MCA2Val, level2.MCA1Val, level2.MCA2Val))
+        elif (algo == CompressionType.TSNE):
+            distances.append(calculateDistance(level1.TSNEVal1, level1.TSNEVal2, level2.TSNEVal1, level2.TSNEVal2))
+        elif (algo == CompressionType.KernelPCA):
+            distances.append(calculateDistance(level1.KernelPCA1, level1.KernelPCA2, level2.KernelPCA1, level2.KernelPCA2))
+        else:
+            print("Algo not recognised in get distances method")
+    return distances
+
+def gen_distnames_for_algos(algolist):
+    returnlist = []
+    for algo in algolist:
+        returnlist.append(algo.name + "Dist") 
+    return returnlist
+
 ###################################
 #Level Wrapper Update Methods
 def update_levelwrapper_datacomp_features(level_dict, compdf, compression_type):
+    """
+    #print("Updating level wrappers with data from " + compression_type.name)
     #print(compdf.head())
+    feature1, feature2 = get_feature_names_for_compression_type(compression_type)
+    #print("Feature names : " + feature1 +"," + feature2)
+    counter = 0
+    for level in level_dict:
+        level_dict[level].feature1 = compdf.loc[level][compression_type.name+' 1']
+        level_dict[level].feature2 = compdf.loc[level][compression_type.name+' 2']
+        #if (counter <5):
+        #    print("Updating Level " +level_dict[level].name + " algo " + compression_type.name + " with values: " + str(level_dict[level].feature1) + "," + str(level_dict[level].feature2) )
+        #    counter+=1
+    return level_dict
+    """
     if (compression_type == CompressionType.PCA):
         for level in level_dict:
             #print('PCA1 Val for level = ' + level + ". " + str(compdf.loc[level]['PC 1']))
@@ -410,11 +481,20 @@ def update_levelwrapper_datacomp_features(level_dict, compdf, compression_type):
         for level in level_dict:
             #print('PCA1 Val for level = ' + level + ". " + str(compdf.loc[level]['PC 1']))
             level_dict[level].TSNE_PCA1 = compdf.loc[level][compression_type.name+' 1']
-            level_dict[level].TSNE_PCA2 = compdf.loc[level][compression_type.name+' 2']    
+            level_dict[level].TSNE_PCA2 = compdf.loc[level][compression_type.name+' 2']
+    elif (compression_type == CompressionType.TSNE):
+        for level in level_dict:
+            #print('PCA1 Val for level = ' + level + ". " + str(compdf.loc[level]['PC 1']))
+            level_dict[level].TSNEVal1 = compdf.loc[level][compression_type.name+' 1']
+            level_dict[level].TSNEVal2 = compdf.loc[level][compression_type.name+' 2']
+    elif (compression_type == CompressionType.KernelPCA):
+        for level in level_dict:
+            #print('PCA1 Val for level = ' + level + ". " + str(compdf.loc[level]['PC 1']))
+            level_dict[level].KernelPCA1 = compdf.loc[level][compression_type.name+' 1']
+            level_dict[level].KernelPCA2 = compdf.loc[level][compression_type.name+' 2']        
     else:
         print('Algo type not recognised')
     return level_dict
-
 
 ###################################
 #Wrapper Methods
@@ -499,117 +579,6 @@ def plot_compressed_data(toplot, var_exp, compTyp, gen_names=[],):
 
 ##################################
 #Compression Algorithm Methods
-"""
-def get_PC_values_from_compiled_onehot(onehot_input, component_count = 2):
-    #Skip first column as thats the levelname column
-    #print(onehot_input.head())
-    #features = onehot_input.columns[1:]
-    #levelnames = onehot_input['level_name'].tolist()
-
-    #x = onehot_input.loc[:,features].values
-    x = StandardScaler().fit_transform(onehot_input)
-    pca = PCA(n_components=component_count)
-    components = pca.fit_transform(x)
-
-    #print("Reprojected PCA shape: " + str(components.shape))
-    pc_labels = gen_component_labels_for_n("PC ", component_count)
-
-    principalDf = pd.DataFrame(data = components
-                , columns = pc_labels, index = onehot_input.index)
-
-    #principalDf['level_name'] = levelnames       
-    return (principalDf,pca.explained_variance_ratio_)
-
-def get_sparsePC_values_from_compiled_onehot(onehot_input, component_count = 2):
-    #Skip first column as thats the levelname column
-    #features = onehot_input.columns[1:]
-    #levelnames = onehot_input['level_name'].tolist()
-
-    #x = onehot_input.loc[:,features].values
-    x = StandardScaler().fit_transform(onehot_input)
-    sparsepca = SparsePCA(n_components=component_count, random_state=0)
-    components = sparsepca.fit_transform(x)
-
-    #print("Reprojected PCA shape: " + str(components.shape))
-    pc_labels = gen_component_labels_for_n("SparsePC ", component_count)
-
-    principalDf = pd.DataFrame(data = components
-                , columns = pc_labels, index = onehot_input.index)
-
-    #principalDf['level_name'] = levelnames       
-
-    return (principalDf,[])
-
-def get_mca_values_from_compiled_char_reps(charrep_input, component_count = 2):
-    #levelnames = charrep_input['level_name'].tolist()
-    #levelrep_columns = charrep_input.drop(['level_name'], axis = 1)
-
-    mca = prince.MCA(n_components=component_count)
-
-    mca.fit(charrep_input)
-    levels_mcaprojected = mca.fit_transform(charrep_input)
-
-    #print("MCA Explained Interia: " + str(levels_mcaprojected.shape))
-
-    truncmcaDF = pd.DataFrame()
-
-    for x in range(0, component_count):
-        truncmcaDF[('MCA-PC' + str(x+1))] = levels_mcaprojected[x]
-
-    #truncmcaDF['level_name'] = levelnames
-    truncmcaDF.set_index(charrep_input.index)
-    return (truncmcaDF, mca.explained_inertia_)
-
-
-def get_projected_truc_svd_values_from_compiled_onehot(onehot_input, component_count = 2):
-    #levelnames = onehot_input['level_name'].tolist()
-    #levelrep_columns = onehot_input.drop(['level_name'], axis = 1)
-
-    svd = TruncatedSVD(n_components=component_count, n_iter=7, random_state=42)
-
-    #We can centre the data first, making it equivalent to PCA 
-    #sc = StandardScaler()
-    #levelrep_columns = sc.fit_transform(levelrep_columns)
-    #print("One hot input head:")
-    #print(onehot_input.head())
-
-    svd.fit(onehot_input)
-    #print("SVD un transformed explained variance " + str(svd.explained_variance_))
-    levels_svdprojected = svd.fit_transform(onehot_input)
-
-    #print("Reprojected shape: " + str(levels_svdprojected.shape))
-
-    #print("svd projeced head:")
-    #print(levels_svdprojected.head())
-
-    truncsvdDF = pd.DataFrame(index = onehot_input.index)
-
-    for x in range(0, component_count):
-        truncsvdDF[('SVD ' + str(x+1))] = levels_svdprojected[:,x]
-
-    #truncsvdDF['level_name'] = levelnames
-    #truncsvdDF.set_index(onehot_input.index)
-    #print("truncdf  head:")
-    #print(truncsvdDF.head())
-    return (truncsvdDF, svd.explained_variance_ratio_)
-
-def get_tsne_projection_from_onehot(onehot_input, prev_algo = '', component_count = 2):
-    #levelnames = onehot_input['level_name'].tolist()
-    #levelrep_columns = onehot_input.drop(['level_name'], axis = 1)
-
-    tsne = TSNE(n_components=component_count, n_iter=250, random_state=42)
-
-    tsne.fit(onehot_input)
-    levels_tsneprojected = tsne.fit_transform(onehot_input)
-
-    #print("Reprojected shape: " + str(levels_tsneprojected.shape))
-
-    trunctsneDF = pd.DataFrame(index = onehot_input.index)
-    for x in range(0, component_count):
-        trunctsneDF[(prev_algo + 'TSNE ' + str(x+1))] = levels_tsneprojected[:,x]
-    #trunctsneDF['level_name'] = levelnames
-    return (trunctsneDF, tsne)
-"""
 
 def get_compression_algo_projection(input, compTyp, columnPrefix = '', component_count = 2):
 
@@ -617,9 +586,9 @@ def get_compression_algo_projection(input, compTyp, columnPrefix = '', component
     varExplained = None
 
     if compTyp == CompressionType.PCA:
-        x = StandardScaler().fit_transform(input)
+        scaledinput = StandardScaler().fit_transform(input)
         pca = PCA(n_components=component_count)
-        projectedValues = pca.fit_transform(x)
+        projectedValues = pca.fit_transform(scaledinput)
         varExplained = pca.explained_variance_ratio_
     elif compTyp == CompressionType.MCA:
         mca = prince.MCA(n_components=component_count)
@@ -627,15 +596,25 @@ def get_compression_algo_projection(input, compTyp, columnPrefix = '', component
         projectedValues = mca.fit_transform(input).to_numpy()
         varExplained = mca.explained_inertia_
     elif compTyp == CompressionType.SVD:
+        scaledinput = StandardScaler().fit_transform(input)
         svd = TruncatedSVD(n_components=component_count, n_iter=7, random_state=42)
-        svd.fit(input)
-        projectedValues = svd.fit_transform(input)
+        svd.fit(scaledinput)
+        projectedValues = svd.fit_transform(scaledinput)
         varExplained = svd.explained_variance_ratio_
     elif compTyp == CompressionType.TSNE:
+        scaledinput = StandardScaler().fit_transform(input)
         tsne = TSNE(n_components=component_count, n_iter=250, random_state=42)
-        tsne.fit(input)
-        projectedValues = tsne.fit_transform(input) 
+        tsne.fit(scaledinput)
+        projectedValues = tsne.fit_transform(scaledinput) 
         varExplained = []
+    elif compTyp == CompressionType.KernelPCA:
+        scaledinput = StandardScaler().fit_transform(input)
+        tsne = KernelPCA(n_components=component_count, kernel='linear')
+        tsne.fit(scaledinput)
+        projectedValues = tsne.fit_transform(scaledinput) 
+        #Calculate Explained Variance
+        explained_variance = np.var(projectedValues, axis=0)
+        varExplained = explained_variance / np.sum(explained_variance)
     else:
         print("Compression type not recognised")      
                 
@@ -661,108 +640,6 @@ def get_compression_algo_projection(input, compTyp, columnPrefix = '', component
 ################################
 #MULTIGENERATOR METHODS
 
-"""
-#Retrieve multiple folders worth of levels from different generators to simultaneously analyse
-#Runs Principal Component Analysis on onehot matrix versions of game levels
-def multigenerator_pca_analysis(game ,height, width, component_count = 2, visualise = False):
-    
-    game_info = get_folder_and_tiletypedict_for_game(game)
-    folder_dict = game_info['Folder_Dict']
-    tile_dict = game_info['Tile_Type_Dict']
-
-    level_dict = get_file_dict_for_gametype(game, height, width)
-    all_levels_onehot = get_compiled_onehot_from_leveldict(level_dict, tile_dict, height, width)
-
-    gen_name_list = all_levels_onehot['generator_name'].tolist()
-    #pca_analysis = get_PC_values_from_compiled_onehot(all_levels_onehot.drop('generator_name', axis=1), component_count)
-    pca_analysis = get_compression_algo_projection(all_levels_onehot.drop('generator_name', axis=1), CompressionType.PCA, component_count = component_count)
-    
-    #Readding the name of the generator for each level to the list of all levels and their PCs
-    pca_analysis[0]['generator_name'] = gen_name_list
-
-    if (visualise == True):
-        plot_compressed_data(pca_analysis[0],pca_analysis[1], CompressionType.PCA, list(folder_dict.keys()))
-    return pca_analysis[0]
-
-def multigenerator_sparsepca_analysis(game ,height, width, component_count = 2, visualise = False):
-    
-    game_info = get_folder_and_tiletypedict_for_game(game)
-    folder_dict = game_info['Folder_Dict']
-    tile_dict = game_info['Tile_Type_Dict']
-
-    level_dict = get_file_dict_for_gametype(game, height, width)
-    all_levels_onehot = get_compiled_onehot_from_leveldict(level_dict, tile_dict, height, width)
-
-    gen_name_list = all_levels_onehot['generator_name'].tolist()
-    #pca_analysis = get_sparsePC_values_from_compiled_onehot(all_levels_onehot.drop('generator_name', axis=1), component_count)
-    pca_analysis = get_compression_algo_projection(all_levels_onehot.drop('generator_name', axis=1), CompressionType.SparsePCA, component_count = component_count)
-    
-    #Readding the name of the generator for each level to the list of all levels and their PCs
-    pca_analysis[0]['generator_name'] = gen_name_list
-    plot_compressed_data(pca_analysis[0],pca_analysis[1], CompressionType.SparsePCA, list(folder_dict.keys()))
-    return pca_analysis[0]
-
-#Runs singular value decomposition on onehot representations of game levels
-def multigenerator_svd(game, height, width, component_count = 2, visualise = False):
-
-    game_info = get_folder_and_tiletypedict_for_game(game)
-    folder_dict = game_info['Folder_Dict']
-    tile_dict = game_info['Tile_Type_Dict']
-
-    level_dict = get_file_dict_for_gametype(game, height, width)
-    all_levels_onehot = get_compiled_onehot_from_leveldict(level_dict, tile_dict, height, width)
-    #print("all levels onehot head")
-    #print(all_levels_onehot.head())
-
-    gen_name_list = all_levels_onehot['generator_name'].tolist()
-
-    #svd_info = get_projected_truc_svd_values_from_compiled_onehot(all_levels_onehot.drop('generator_name', axis=1), component_count)
-    svd_info = get_compression_algo_projection(all_levels_onehot.drop('generator_name', axis=1), CompressionType.SVD, component_count = component_count)
-    #Readding the name of the generator for each level to the list of all levels and their PCs
-    svd_info[0]['generator_name'] = gen_name_list
-    #print('svd0 head:')
-    #print(svd_info[0].head())
-    if visualise == True:
-        plot_compressed_data(svd_info[0], svd_info[1], CompressionType.SVD, list(folder_dict.keys()))
-    return svd_info[0]
-
-def multigenerator_tsne(game,height, width, visualise = False):
-
-    game_info = get_folder_and_tiletypedict_for_game(game)
-    folder_dict = game_info['Folder_Dict']
-    tile_dict = game_info['Tile_Type_Dict']
-
-    level_dict = get_file_dict_for_gametype(game, height, width)
-    #all_levels_onehot = get_onehot_df_from_gen_and_level_list(generator_levels_dict, tile_dict, height, width)
-    all_levels_onehot = get_compiled_onehot_from_leveldict(level_dict, tile_dict, height, width)
-
-    gen_name_list = all_levels_onehot['generator_name'].tolist()
-    #tsne_info = get_tsne_projection_from_onehot(all_levels_onehot.drop('generator_name', axis=1))
-    tsne_info = get_compression_algo_projection(all_levels_onehot.drop('generator_name', axis=1), CompressionType.TSNE)
-    #Readding the name of the generator for each level to the list of all levels and their PCs
-    tsne_info[0]['generator_name'] = gen_name_list
-    if visualise == True:
-        plot_compressed_data(tsne_info[0], tsne_info[1], CompressionType.TSNE, list(folder_dict.keys()))
-
-def multigenerator_mca(game, height, width, component_count = 2, visualise = False):
-
-    game_info = get_folder_and_tiletypedict_for_game(game)
-    folder_dict = game_info['Folder_Dict']
-
-    level_dict = get_file_dict_for_gametype(game, height, width)
-    all_levels_char_df = get_compiled_char_representations_from_level_dict(level_dict, height, width)
-    gen_name_list = all_levels_char_df['generator_name'].tolist()
-
-    #mca_info = get_mca_values_from_compiled_char_reps(all_levels_char_df.drop('generator_name', axis=1), component_count)
-    mca_info = get_compression_algo_projection(all_levels_char_df.drop('generator_name', axis=1), CompressionType.MCA, component_count = component_count)
-    #Readding the name of the generator for each level to the list of all levels and their PCs
-    mca_info[0]['generator_name'] = gen_name_list
-
-    if visualise == True:
-        plot_compressed_data(mca_info[0], mca_info[1], CompressionType.MCA, list(folder_dict.keys()))
-    return mca_info[0]
-"""
-
 def multigenerator_compression(game, comp_algo, height, width, component_count = 2, visualise = False):
     game_info = get_folder_and_tiletypedict_for_game(game)
     folder_dict = game_info['Folder_Dict']
@@ -782,25 +659,15 @@ def multigenerator_compression(game, comp_algo, height, width, component_count =
     compressed_info[0]['generator_name'] = gen_name_list
     if visualise == True:
         plot_compressed_data(compressed_info[0], compressed_info[1], comp_algo, list(folder_dict.keys()))
+    #print("Head of comp info for algo " + comp_algo.name)
+    #print(compressed_info[0].head())
     return compressed_info[0]
 
 
 #def apply_tsne_to_compressed_output(folders_dict, tiletypes_dict, algotype, height, width, initial_components, isboxoban = False):
 def apply_tsne_to_compressed_output(game, initial_comp_algo, height, width, initial_components, visualise = False):
     initial_compression = pd.DataFrame()
-    """
-    if (initial_comp_algo == CompressionType.PCA):
-        initial_compression = multigenerator_pca_analysis(game, height, width, initial_components)
-    elif (initial_comp_algo == CompressionType.SparsePCA):
-        initial_compression = multigenerator_sparsepca_analysis(game, height, width, initial_components)
-    elif (initial_comp_algo == CompressionType.SVD):
-        initial_compression = multigenerator_svd(game,  height, width, initial_components)
-    elif (initial_comp_algo == CompressionType.MCA):
-        initial_compression = multigenerator_mca(game, height, width, initial_components)
-    else:
-        print("Algorithm not found, please check your call")
-        return
-    """
+
     initial_compression = multigenerator_compression(game,initial_comp_algo, height, width, initial_components)
     gen_name_list = initial_compression['generator_name'].tolist()
     #tsneinfo = get_tsne_projection_from_onehot(initial_compression.drop('generator_name', axis=1), prev_algo = algotype)
@@ -812,41 +679,136 @@ def apply_tsne_to_compressed_output(game, initial_comp_algo, height, width, init
         plot_compressed_data(tsneinfo[0],[], CompressionType.PCATSNE, list(folders_dict.keys()))
     return tsneinfo[0]
 
-def generate_analytics_for_all_level_pairs(game, height, width, component_count, output_file_name, maxpairs = 100000):
+#Returns a dictionary of level wrappers with their dimensionality reduction algorithm locations specified
+def get_and_update_levels_for_algo_list(game, height, width, component_count, algolist, visualise = False):
     level_wrapper_dict = get_file_dict_for_gametype(game, height, width)
     #pca_output = multigenerator_pca_analysis(game, height, width, component_count, visualise=True)
-    pca_output = multigenerator_compression(game, CompressionType.PCA, height, width, component_count, visualise=True)
 
-    #print("PCA Output head:")
-    #print(pca_output.head())
-    updated_levelwrappers = update_levelwrapper_datacomp_features(level_wrapper_dict, pca_output, CompressionType.PCA)
-    #mca_output = multigenerator_mca(game, height, width, component_count, visualise=True)
-    mca_output = multigenerator_compression(game, CompressionType.MCA, height, width, component_count, visualise=True)
-    updated_levelwrappers = update_levelwrapper_datacomp_features(updated_levelwrappers, mca_output, CompressionType.MCA)
-    #svd_output = multigenerator_svd(game, height, width, component_count, visualise=True)
-    svd_output = multigenerator_compression(game, CompressionType.SVD, height, width, component_count, visualise=True)   
-    updated_levelwrappers = update_levelwrapper_datacomp_features(updated_levelwrappers, svd_output, CompressionType.SVD)
-    #tsne_to_pca_output = apply_tsne_to_compressed_output(game, CompressionType.PCA, height, width, component_count, visualise=True)
-    tsne_to_pca_output = apply_tsne_to_compressed_output(game, CompressionType.PCA, height, width, component_count, visualise=True)
+    for algo in algolist:
+        algo_output = multigenerator_compression(game, algo, height, width, component_count, visualise)
+        level_wrapper_dict = update_levelwrapper_datacomp_features(level_wrapper_dict, algo_output, algo)
 
-    #print("TSNE Output head:")
-    #print(tsne_to_pca_output.head())
-    updated_levelwrappers = update_levelwrapper_datacomp_features(updated_levelwrappers, tsne_to_pca_output, CompressionType.PCATSNE)
+    return copy.deepcopy(level_wrapper_dict)
 
+def gen_compression_dist_df_from_leveldict(level_wrapper_dict, algolist, maxpairs, output_file_name):
     counter = 0
     start_time = datetime.now()
     output_dict = dict()
 
-    for (x,y) in ((x,y) for x in updated_levelwrappers for y in updated_levelwrappers if x!=y):
-        level1 = updated_levelwrappers[x]
-        level2 = updated_levelwrappers[y]
+    for (x,y) in ((x,y) for x in level_wrapper_dict for y in level_wrapper_dict if x!=y):
+        level1 = level_wrapper_dict[x]
+        level2 = level_wrapper_dict[y]
+        bc_dist_list = []
+        """
+        for algo in algolist:
+            #print("Algo : " + algo.name)
+            feature1, feature2 = get_feature_names_for_compression_type(algo)
+            #print("Algo feature names  : " + feature1 + "," + feature2)
+            #print("Calcing features: " + str(level1.feature1)+ " " +str(level1.feature2)+" " + str(level2.feature1)+ " " +str(level2.feature2))
+            #print("Appending for algo : " + algo.name + " " + str(calculateDistance(level1.feature1, level1.feature2, level2.feature1, level2.feature2)))
+            algo_dist_list.append(calculateDistance(level1.feature1, level1.feature2, level2.feature1, level2.feature2))
+            #print("Appending features: " + str(level1.feature1)+ str(level1.feature2)+ str(level2.feature1)+ str(level2.feature2))
+        #print("Algo dist list: " + str(algo_dist_list))
+        #print("Level pair vals. PC1 & 2, SVD1 & 2, MCA 1 & 2")
+        #print(str(level1.PC1Val)+ " "+ str(level1.SVD1Val)+ " "+ str(level2.MCA1Val))
+        #print("Level: " + level2.name + " with First vals: " + str(level2.PC1Val)+ " "+ str(level2.SVD1Val)+ " "+ str(level2.MCA1Val))
+        """
+
+        #pca_distance = calculateDistance(level1.PC1Val, level1.PC2Val, level2.PC1Val, level2.PC2Val)
+        #svd_distance = calculateDistance(level1.SVD1Val, level1.SVD2Val, level2.SVD1Val, level2.SVD2Val)
+        #mca_distance = calculateDistance(level1.MCA1Val, level1.MCA2Val, level2.MCA1Val, level2.MCA2Val)
+        algo_dist_list = get_distances_for_algolist_for_levelpair(level1, level2,algolist)
+        
+        #tsnepca_distance = calculateDistance(level1.TSNE_PCA1, level1.TSNE_PCA2, level2.TSNE_PCA1, level2.TSNE_PCA2)
+        bc_dist_list.append(abs(level1.empty_space - level2.empty_space))
+        levelpair_row = [level1.name, level1.generator_name, level2.name , level2.generator_name] + algo_dist_list + bc_dist_list
+        output_dict[counter] = levelpair_row
+        
+        #empty_space_dist = abs(level1.empty_space - level2.empty_space)
+        #output_dict[counter] = [level1.name, level1.generator_name, level2.name , level2.generator_name, pca_distance, svd_distance, mca_distance, empty_space_dist]
+        counter+=1
+
+        if (counter%500000 == 0):
+            print("500000 level pairs processed. Counter: " + str(counter))
+            print("Runtime: " + str(datetime.now () -start_time) + " seconds")
+
+        if (counter>maxpairs):
+            break
+    
+    #Generate column names for distances
+    #algodist_colnames = []
+    #for algo in algolist:
+    #    algodist_colnames.append(algo.name + "Dist")
+    algodist_colnames = gen_distnames_for_algos(algolist)
+
+    outputdf = pd.DataFrame.from_dict(output_dict, orient = 'index', columns = np.concatenate((['Level1', 'Level1 Generator',  'Level2', 'Level2 Generator'], algodist_colnames, ['EmptSpaceDiff'])))
+
+    print("Total runtime: " + str(datetime.now () -start_time) + " seconds")
+    print(str(counter) + " Level Pairs assessed for game: " + game.name)
+
+    #print(outputdf.head())
+    curr_time = datetime.now().strftime("%m_%d_%H_%M_%S")
+    outputdf.to_csv(output_file_name + curr_time +'.csv', index = False)
+    return outputdf
+
+def generate_analytics_for_all_level_pairs(game, height, width, component_count, output_file_name, algolist, maxpairs = 100000, visualise = False):
+    
+    """
+    #pca_output = multigenerator_pca_analysis(game, height, width, component_count, visualise=True)
+    updated_dict = None
+    for algo in algolist:
+        algo_output = multigenerator_compression(game, algo, height, width, component_count, visualise)
+        updated_dict = update_levelwrapper_datacomp_features(level_wrapper_dict, algo_output, algo)
+    
+    for level in updated_dict:
+        updated_dict[level].print_features()
+    """
+
+    
+    complete_level_dict = get_and_update_levels_for_algo_list(game, height, width, component_count, algolist)
+    #for level in complete_level_dict:
+    #    print("Level name: " + level)
+    #    print("PCA Values = " + str(complete_level_dict[level].PC1Val) + "," + str(complete_level_dict[level].PC2Val))
+    #    complete_level_dict[level].print_features()
+
+    return gen_compression_dist_df_from_leveldict(complete_level_dict, algolist, maxpairs, output_file_name)
+    
+
+    """
+    level_wrapper_dict = get_file_dict_for_gametype(game, height, width)    
+    pca_output = multigenerator_compression(game, CompressionType.PCA, height, width, component_count, visualise)
+    #print("PCA Output head:")
+    #print(pca_output.head())
+    updated_levelwrappers = update_levelwrapper_datacomp_features(level_wrapper_dict, pca_output, CompressionType.PCA)
+    #mca_output = multigenerator_mca(game, height, width, component_count, visualise=True)
+    mca_output = multigenerator_compression(game, CompressionType.MCA, height, width, component_count, visualise)
+    updated_levelwrappers = update_levelwrapper_datacomp_features(updated_levelwrappers, mca_output, CompressionType.MCA)
+    #svd_output = multigenerator_svd(game, height, width, component_count, visualise=True)
+    svd_output = multigenerator_compression(game, CompressionType.SVD, height, width, component_count, visualise)   
+    updated_levelwrappers = update_levelwrapper_datacomp_features(updated_levelwrappers, svd_output, CompressionType.SVD)
+    #tsne_to_pca_output = apply_tsne_to_compressed_output(game, CompressionType.PCA, height, width, component_count, visualise=True)
+    #tsne_to_pca_output = apply_tsne_to_compressed_output(game, CompressionType.PCA, height, width, component_count, visualise)
+
+    #print("TSNE Output head:")
+    #print(tsne_to_pca_output.head())
+    #updated_levelwrappers = update_levelwrapper_datacomp_features(updated_levelwrappers, tsne_to_pca_output, CompressionType.PCATSNE)
+    
+
+    
+    counter = 0
+    start_time = datetime.now()
+    output_dict = dict()
+
+    for (x,y) in ((x,y) for x in level_wrapper_dict for y in level_wrapper_dict if x!=y):
+        level1 = level_wrapper_dict[x]
+        level2 = level_wrapper_dict[y]
         pca_distance = calculateDistance(level1.PC1Val, level1.PC2Val, level2.PC1Val, level2.PC2Val)
         svd_distance = calculateDistance(level1.SVD1Val, level1.SVD2Val, level2.SVD1Val, level2.SVD2Val)
         mca_distance = calculateDistance(level1.MCA1Val, level1.MCA2Val, level2.MCA1Val, level2.MCA2Val)
-        tsnepca_distance = calculateDistance(level1.TSNE_PCA1, level1.TSNE_PCA2, level2.TSNE_PCA1, level2.TSNE_PCA2)
+        #tsnepca_distance = calculateDistance(level1.TSNE_PCA1, level1.TSNE_PCA2, level2.TSNE_PCA1, level2.TSNE_PCA2)
         empty_space_dist = abs(level1.empty_space - level2.empty_space)
 
-        output_dict[counter] = [level1.name, level1.generator_name, level2.name , level2.generator_name, pca_distance, svd_distance, mca_distance,tsnepca_distance, empty_space_dist]
+        output_dict[counter] = [level1.name, level1.generator_name, level2.name , level2.generator_name, pca_distance, svd_distance, mca_distance, empty_space_dist]
         counter+=1
 
         if (counter%500000 == 0):
@@ -856,10 +818,55 @@ def generate_analytics_for_all_level_pairs(game, height, width, component_count,
         if (counter>maxpairs):
             break
 
-    outputdf = pd.DataFrame.from_dict(output_dict, orient = 'index', columns = ['Level1', 'Level1 Generator',  'Level2', 'Level2 Generator','PCADist', 'SVDDist', 'MCADist', 'TSNEPCADist', 'EmptSpaceDiff'])
+    outputdf = pd.DataFrame.from_dict(output_dict, orient = 'index', columns = ['Level1', 'Level1 Generator',  'Level2', 'Level2 Generator', 'PCADist','SVDDist', 'MCADist', 'EmptSpaceDiff'])
 
     print("Total runtime: " + str(datetime.now () -start_time) + " seconds")
     print(str(counter) + " Level Pairs assessed for game: " + game.name)
+
+    #print(outputdf.head())
+    curr_time = datetime.now().strftime("%m_%d_%H_%M_%S")
+    outputdf.to_csv(output_file_name + curr_time +'.csv', index = False)
+    return outputdf
+    """
+
+def generate_feature_dataframe(game, height, width, component_count, output_file_name, visualise = False):
+    level_wrapper_dict = get_file_dict_for_gametype(game, height, width)
+    #pca_output = multigenerator_pca_analysis(game, height, width, component_count, visualise=True)
+    pca_output = multigenerator_compression(game, CompressionType.PCA, height, width, component_count, visualise)
+    #print("PCA Output head:")
+    #print(pca_output.head())
+    updated_levelwrappers = update_levelwrapper_datacomp_features(level_wrapper_dict, pca_output, CompressionType.PCA)
+    #mca_output = multigenerator_mca(game, height, width, component_count, visualise=True)
+    mca_output = multigenerator_compression(game, CompressionType.MCA, height, width, component_count, visualise)
+    updated_levelwrappers = update_levelwrapper_datacomp_features(updated_levelwrappers, mca_output, CompressionType.MCA)
+    #svd_output = multigenerator_svd(game, height, width, component_count, visualise=True)
+    svd_output = multigenerator_compression(game, CompressionType.SVD, height, width, component_count, visualise)   
+    updated_levelwrappers = update_levelwrapper_datacomp_features(updated_levelwrappers, svd_output, CompressionType.SVD)
+    #tsne_to_pca_output = apply_tsne_to_compressed_output(game, CompressionType.PCA, height, width, component_count, visualise=True)
+    tsne_to_pca_output = apply_tsne_to_compressed_output(game, CompressionType.PCA, height, width, component_count, visualise)
+
+    #print("TSNE Output head:")
+    #print(tsne_to_pca_output.head())
+    updated_levelwrappers = update_levelwrapper_datacomp_features(updated_levelwrappers, tsne_to_pca_output, CompressionType.PCATSNE)
+
+    counter = 0
+    start_time = datetime.now()
+    output_dict = dict()
+
+    for x in updated_levelwrappers:
+        level = updated_levelwrappers[x]
+        #pca_distance = calculateDistance(level1.PC1Val, level1.PC2Val, level2.PC1Val, level2.PC2Val)
+        #svd_distance = calculateDistance(level1.SVD1Val, level1.SVD2Val, level2.SVD1Val, level2.SVD2Val)
+        #mca_distance = calculateDistance(level1.MCA1Val, level1.MCA2Val, level2.MCA1Val, level2.MCA2Val)
+        #tsnepca_distance = calculateDistance(level1.TSNE_PCA1, level1.TSNE_PCA2, level2.TSNE_PCA1, level2.TSNE_PCA2)
+        #mpty_space_dist = abs(level1.empty_space - level2.empty_space)
+
+        output_dict[counter] = [level.name, level.generator_name, level.PC1Val, level.PC2Val, level.SVD1Val, level.SVD2Val, level.MCA1Val,level.MCA2Val,level.TSNE_PCA1,level.TSNE_PCA2, level.empty_space]
+        counter+=1
+
+    outputdf = pd.DataFrame.from_dict(output_dict, orient = 'index', columns = ['Level_Name', 'Level_Generator',  'PCA1','PCA2','SVD1', 'SVD2', 'MCA1', 'MCA2', 'TSNE1', 'TSNE2', 'EmptSpaceDiff'])
+
+    print("Total runtime: " + str(datetime.now () -start_time) + " seconds")
 
     #print(outputdf.head())
     curr_time = datetime.now().strftime("%m_%d_%H_%M_%S")
@@ -871,16 +878,20 @@ def generate_analytics_for_all_level_pairs(game, height, width, component_count,
 #Note: Will only work on Boxoban for now, we need custom methods for getting column names for game specific features etc
 test_width = 10
 test_height = 10
-test_comp = 5
+test_comp = 2
 game = Game.Boxoban
-max_pairs = 1000000
-test_output = generate_analytics_for_all_level_pairs(game, test_height, test_width, 5, 'wrapped_mario_output', max_pairs)
+algolist = [CompressionType.PCA, CompressionType.MCA, CompressionType.SVD, CompressionType.KernelPCA, CompressionType.TSNE]
+max_pairs = 1000
+visualise = False
 
+test_output = generate_analytics_for_all_level_pairs(game, test_height, test_width, test_comp, 'wrapped_box_output',algolist, max_pairs, visualise)
 
+get_linear_correlations_from_df(test_output, algolist, ['EmptSpaceDiff'])
+
+"""
 PCAVals = test_output[['PCADist']].values.reshape(-1)
 MCAVals = test_output[['MCADist']].values.reshape(-1)
 SVDVals = test_output[['SVDDist']].values.reshape(-1)
-TSNEPCAVals = test_output[['TSNEPCADist']].values.reshape(-1)
 EmptVals = test_output[['EmptSpaceDiff']].values.reshape(-1)
 #print("PCAVals dtype: " + str(PCAVals.dtype))
 #print("Shapes of value arrays: " + str(PCAVals.shape))
@@ -894,23 +905,70 @@ EmptVals = test_output[['EmptSpaceDiff']].values.reshape(-1)
 pcacorr, pcapval = pearsonr(PCAVals, EmptVals)
 mcacorr, mcapval = pearsonr(MCAVals, EmptVals)
 svdcorr, svdpval = pearsonr(SVDVals, EmptVals)
-tsnecorr, tsnepval = pearsonr(TSNEPCAVals, EmptVals)
 
 print('Pearsons correlation on PCA: %.3f' % pcacorr + " with P Value: " + str("{:.2f}".format(pcapval)))
 print('Pearsons correlation on MCA: %.3f' % mcacorr + " with P Value: " + str("{:.2f}".format(mcapval)))
 print('Pearsons correlation on SVD: %.3f' % svdcorr + " with P Value: " + str("{:.2f}".format(svdpval)))
-print('Pearsons correlation on PCA-TSNE: %.3f' % tsnecorr + " with P Value: " + str("{:.2f}".format(tsnepval)))
 
 
 pcacspear, sppcapval = spearmanr(PCAVals, EmptVals)
 mcaspear, spmcapval = spearmanr(MCAVals, EmptVals)
 svdspear, pcsvdpval = spearmanr(SVDVals, EmptVals)
-tsnespear, sptsnepval = spearmanr(TSNEPCAVals, EmptVals)
 
 print('Spearmans correlation on PCA: %.3f' % pcacspear + " with P Value: " + str("{:.2f}".format(sppcapval)))
 print('Spearmans correlation on MCA: %.3f' % mcaspear + " with P Value: " + str("{:.2f}".format(spmcapval)))
 print('Spearmans correlation on SVD: %.3f' % svdspear + " with P Value: " + str("{:.2f}".format(pcsvdpval)))
-print('Spearmans correlation on PCA-TSNE: %.3f' % tsnespear + " with P Value: " + str("{:.2f}".format(sptsnepval)))
+"""
+
+
+#Testing Multiple Regression Analysis
+"""
+test_width = 80
+test_height = 10
+test_comp = 50
+game = Game.Mario
+max_pairs = 10
+visualise = False
+test_output = generate_feature_dataframe(game, test_height, test_width, test_comp, 'wrapped_mario_output', visualise)
+
+independent = test_output[['TSNE1', 'TSNE2']]
+dependent = test_output[['EmptSpaceDiff']]
+
+regr = linear_model.LinearRegression()
+regr.fit (independent, dependent)
+print("Coefficient of determination TSNE::")
+print(str(regr.score(independent, dependent)))
+
+
+independent = test_output[['PCA1', 'PCA2']]
+dependent = test_output[['EmptSpaceDiff']]
+
+regr = linear_model.LinearRegression()
+regr.fit (independent, dependent)
+print("Coefficient of determination PCA:")
+print(str(regr.score(independent, dependent)))
+
+
+independent = test_output[['MCA1', 'MCA2']]
+dependent = test_output[['EmptSpaceDiff']]
+
+regr = linear_model.LinearRegression()
+regr.fit (independent, dependent)
+print("Coefficient of determination MCA:")
+print(str(regr.score(independent, dependent)))
+
+
+independent = test_output[['SVD1', 'SVD2']]
+dependent = test_output[['EmptSpaceDiff']]
+
+regr = linear_model.LinearRegression()
+regr.fit (independent, dependent)
+print("Coefficient of determination SVD:")
+print(str(regr.score(independent, dependent)))
+"""
+
+
+
 
 
 
