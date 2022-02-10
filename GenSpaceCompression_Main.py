@@ -39,12 +39,12 @@ class Game(Enum):
     Boxoban = 3 
 
 #Hard coding the size of window we grab from each level for each game type
-mario_width = 80
-mario_height = 10
+mario_width = 200
+mario_height = 16
 boxoban_width = 10
 boxoban_height = 10
-loderunner_width = 22
-loderunner_height = 32
+loderunner_width = 32
+loderunner_height = 22
 
 class CompressionType(Enum):
     PCA = 1,
@@ -59,7 +59,8 @@ class CompressionType(Enum):
 
 class BCType(Enum):
     EmptySpace = 1,
-    EnemyCount = 2
+    EnemyCount = 2,
+    Linearity = 3
 
 lr_tiletypes_dict = {
     "CountOfNumericTileTypes" : int(8),
@@ -173,7 +174,7 @@ def get_boxoban_leveldict_from_file(file_name, file_dict_key):
                     buffer.clear()
                 #Check if we are at the end of a level rep. If we are, add it to our dictionary
                 elif ((line_counter+1)%12 == 0):
-                    char_matrix = np.reshape(buffer,(10, 10), order = 'C')
+                    char_matrix = np.reshape(buffer,(boxoban_height, boxoban_width), order = 'C')
                     #level_reps[int(temp_levelname)] = char_matrix
                     #level_reps[file_dict_key +':'+ temp_levelname] = LevelWrapper(temp_levelname, file_dict_key, char_matrix)
                     new_level = BoxobanLevel(temp_levelname, file_dict_key, char_matrix)
@@ -195,8 +196,9 @@ def get_boxoban_leveldict_from_file(file_name, file_dict_key):
     return level_reps
 
 #Def get an dict of LevelWrappers from a folder in form (Key: 'Folder + File Name, Value: LevelWrapper)
-def get_leveldict_from_folder(path, folder_key, game, window_height, window_width):
+def get_leveldict_from_folder(path, folder_key, game):
     file_names = get_filenames_from_folder(path)
+    window_height, window_width = get_level_heightandwidth_for_game(game)
     #folder_name = os.path.basename(os.path.normpath(path))
     level_reps = dict()
 
@@ -209,7 +211,7 @@ def get_leveldict_from_folder(path, folder_key, game, window_height, window_widt
     return level_reps
 
 #Get a combined levelwrapper dictionary from a folder dictionary
-def get_leveldicts_from_folder_set(game,height, width):
+def get_leveldicts_from_folder_set(game):
     level_dict = dict()
 
     game_info = get_folder_and_tiletypedict_for_game(game)
@@ -217,12 +219,12 @@ def get_leveldicts_from_folder_set(game,height, width):
 
     for folder in folder_dict:
         #Get all one for for specific folder
-        temp_dict = get_leveldict_from_folder(folder_dict[folder], folder, game,  height, width)
+        temp_dict = get_leveldict_from_folder(folder_dict[folder], folder, game)
         level_dict = level_dict|temp_dict
     return level_dict
 
 #Get a dictionary of dictionarys (BoxobanFilename: Level Dict) from a Boxoban file
-def get_leveldicts_from_boxoban_files(files_dict,height, width):
+def get_leveldicts_from_boxoban_files(files_dict):
     files_level_dict = dict()
     for file in files_dict:
         temp_dict = get_boxoban_leveldict_from_file(files_dict[file], file)
@@ -370,14 +372,11 @@ def gen_component_labels_for_n(label, n):
     return output_labels
 
 #Get folder dict for game type
-def get_file_dict_for_gametype(game, height, width):
-
-
+def get_file_dict_for_gametype(game):
     if game == Game.Boxoban:
-        return get_leveldicts_from_boxoban_files(boxoban_files_dict, height, width)
+        return get_leveldicts_from_boxoban_files(boxoban_files_dict)
     else: 
-        return get_leveldicts_from_folder_set(game, height, width)
-
+        return get_leveldicts_from_folder_set(game)
 
 def get_folder_and_tiletypedict_for_game(game):
     output = dict()
@@ -416,6 +415,22 @@ def get_feature_names_for_compression_type(algotype):
     elif (algotype == CompressionType.SVD):
         return ['SVD1Val', 'SVD2Val']
 
+def get_compvals_for_algolist_for_levelpair(level1, level2, algolist):
+    vals = []
+    for algo in algolist:
+        if (algo == CompressionType.PCA):
+            vals+= [level1.PC1Val, level1.PC2Val, level2.PC1Val, level2.PC2Val]
+        elif (algo == CompressionType.SVD):
+            vals+= [level1.SVD1Val, level1.SVD2Val, level2.SVD1Val, level2.SVD2Val]
+        elif (algo == CompressionType.MCA):
+            vals+= [level1.MCA1Val, level1.MCA2Val, level2.MCA1Val, level2.MCA2Val]
+        elif (algo == CompressionType.TSNE):
+            vals+= [level1.TSNEVal1, level1.TSNEVal2, level2.TSNEVal1, level2.TSNEVal2]
+        elif (algo == CompressionType.KernelPCA):
+            vals+=[level1.KernelPCA1, level1.KernelPCA2, level2.KernelPCA1, level2.KernelPCA2]
+        else:
+            print("Algo not recognised in get vals method")
+    return vals
 def get_distances_for_algolist_for_levelpair(level1, level2, algolist):
     distances = []
     for algo in algolist:
@@ -433,6 +448,17 @@ def get_distances_for_algolist_for_levelpair(level1, level2, algolist):
             print("Algo not recognised in get distances method")
     return distances
 
+def get_bcvals_for_bclist_for_levelpair(level1, level2, bclist):
+    vals = []
+    for bc in bclist:
+        if (bc == BCType.EmptySpace):
+            vals+=[level1.empty_space, level2.empty_space]
+        elif (bc == BCType.EnemyCount):
+            vals+=[level1.enemy_count, level2.enemy_count]
+        elif (bc == BCType.Linearity):
+            vals+=[level1.linearity, level2.linearity]
+    return vals
+
 def get_differences_for_bclist_for_levelpair(level1, level2, bclist):
     differences = []
     for bc in bclist:
@@ -440,6 +466,8 @@ def get_differences_for_bclist_for_levelpair(level1, level2, bclist):
             differences.append(abs(level1.empty_space - level2.empty_space))
         elif (bc == BCType.EnemyCount):
             differences.append(abs(level1.enemy_count - level2.enemy_count))
+        elif (bc == BCType.Linearity):
+            differences.append(abs(level1.linearity - level2.linearity))
     return differences
 
 def gen_distnames_for_algos(algolist):
@@ -448,10 +476,29 @@ def gen_distnames_for_algos(algolist):
         returnlist.append(algo.name + "Dist") 
     return returnlist
 
+def gen_valanddist_colnames_for_algos(algolist):
+    returnlist = []
+    #Value column names
+    for algo in algolist:
+        returnlist.append("1stLvlVal "+ algo.name + " 1") 
+        returnlist.append("1stLvlVal  "+ algo.name + " 2") 
+        returnlist.append("2ndLvlVal  "+ algo.name + " 1") 
+        returnlist.append("2ndLvlVal  "+ algo.name + " 2") 
+    returnlist+=gen_distnames_for_algos(algolist)
+    return returnlist
+    
 def gen_diffnames_for_bcs(bclist):
     returnlist = []
     for bc in bclist:
         returnlist.append(bc.name + "Dist")
+    return returnlist
+
+def gen_valanddiff_colnames_for_bcs(bclist):
+    returnlist = []
+    for bc in bclist:
+        returnlist.append("1stLvlVal "+ bc.name) 
+        returnlist.append("2ndLvlVal "+ bc.name) 
+    returnlist+=gen_diffnames_for_bcs(bclist)
     return returnlist
 
 def get_level_heightandwidth_for_game(game):
@@ -459,6 +506,8 @@ def get_level_heightandwidth_for_game(game):
         return [mario_height, mario_width]
     elif (game == Game.Boxoban):
         return [boxoban_height, boxoban_width]
+    elif (game == Game.Loderunner):
+        return [loderunner_height, loderunner_width]
 
 ###################################
 #Level Wrapper Update Methods
@@ -513,12 +562,12 @@ def update_levelwrapper_datacomp_features(level_dict, compdf, compression_type):
     return level_dict
 
 #Returns a dictionary of level wrappers with their dimensionality reduction algorithm locations specified
-def get_and_update_levels_for_algo_list(game, height, width, component_count, algolist, visualise = False):
-    level_wrapper_dict = get_file_dict_for_gametype(game, height, width)
+def get_and_update_levels_for_algo_list(game, component_count, algolist, visualise = False):
+    level_wrapper_dict = get_file_dict_for_gametype(game)
     #pca_output = multigenerator_pca_analysis(game, height, width, component_count, visualise=True)
 
     for algo in algolist:
-        algo_output = multigenerator_compression(game, algo, height, width, component_count, visualise)
+        algo_output = multigenerator_compression(game, algo, component_count, visualise)
         level_wrapper_dict = update_levelwrapper_datacomp_features(level_wrapper_dict, algo_output, algo)
 
     return copy.deepcopy(level_wrapper_dict)
@@ -612,10 +661,10 @@ def get_compression_algo_projection(input, compTyp, columnPrefix = '', component
         projectedValues = mca.fit_transform(input).to_numpy()
         varExplained = mca.explained_inertia_
     elif compTyp == CompressionType.SVD:
-        scaledinput = StandardScaler().fit_transform(input)
+        #scaledinput = StandardScaler().fit_transform(input)
         svd = TruncatedSVD(n_components=component_count, n_iter=7, random_state=42)
-        svd.fit(scaledinput)
-        projectedValues = svd.fit_transform(scaledinput)
+        svd.fit(input)
+        projectedValues = svd.fit_transform(input)
         varExplained = svd.explained_variance_ratio_
     elif compTyp == CompressionType.TSNE:
         scaledinput = StandardScaler().fit_transform(input)
@@ -625,7 +674,7 @@ def get_compression_algo_projection(input, compTyp, columnPrefix = '', component
         varExplained = []
     elif compTyp == CompressionType.KernelPCA:
         scaledinput = StandardScaler().fit_transform(input)
-        tsne = KernelPCA(n_components=component_count, kernel='linear')
+        tsne = KernelPCA(n_components=component_count, kernel='poly')
         tsne.fit(scaledinput)
         projectedValues = tsne.fit_transform(scaledinput) 
         #Calculate Explained Variance
@@ -642,29 +691,36 @@ def get_compression_algo_projection(input, compTyp, columnPrefix = '', component
     #principalDf['level_name'] = levelnames       
     return (outputDF,varExplained)
 
-def get_linear_correlations_from_df(df, algolist, bclist):
+def get_linear_correlations_from_df(df, algolist, bclist, filename):
 
     dists_list = gen_distnames_for_algos(algolist)
     bc_diff_list = gen_diffnames_for_bcs(bclist)
+
+    outputfile = open(filename + "correlations.txt", "x")
 
     for compression_dist in dists_list:
         vals = df[[compression_dist]].values.reshape(-1)
         for bc in bc_diff_list:
             bcvals = df[[bc]].values.reshape(-1)
 
-            pcacorr, pcapval = pearsonr(vals, bcvals)
-            print('Pearsons correlation on ' + compression_dist + ' : %.3f' % pcacorr + " with P Value: " + str("{:.2f}".format(pcapval)))
+            #pcacorr, pcapval = pearsonr(vals, bcvals)
+            #print('Pearsons correlation on ' + compression_dist + ' for BC: ' + bc + ' : %.3f' % pcacorr + " with P Value: " + str("{:.2f}".format(pcapval)))
             pcacspear, sppcapval = spearmanr(vals, bcvals)
-            print('Spearmans correlation on ' + compression_dist + ' : %.3f' % pcacspear + " with P Value: " + str("{:.2f}".format(sppcapval)))
+            text = ('Spearmans correlation on ' + compression_dist + ' for BC: ' + bc + ' : %.3f' % pcacspear + " with P Value: " + str("{:.2f}".format(sppcapval)))
+            outputfile.write(text + "\n")
+            print('Spearmans correlation on ' + compression_dist + ' for BC: ' + bc + ' : %.3f' % pcacspear + " with P Value: " + str("{:.2f}".format(sppcapval)))
+    outputfile.close()
 
 ################################
 #MULTIGENERATOR METHODS
 
-def multigenerator_compression(game, comp_algo, height, width, component_count = 2, visualise = False):
+def multigenerator_compression(game, comp_algo, component_count = 2, visualise = False):
     game_info = get_folder_and_tiletypedict_for_game(game)
     folder_dict = game_info['Folder_Dict']
     tile_dict = game_info['Tile_Type_Dict']
-    level_dict = get_file_dict_for_gametype(game, height, width)
+    level_dict = get_file_dict_for_gametype(game)
+
+    height, width = get_level_heightandwidth_for_game(game)
 
     processed_levels = None
     if (comp_algo == CompressionType.MCA):
@@ -685,10 +741,10 @@ def multigenerator_compression(game, comp_algo, height, width, component_count =
 
 
 #def apply_tsne_to_compressed_output(folders_dict, tiletypes_dict, algotype, height, width, initial_components, isboxoban = False):
-def apply_tsne_to_compressed_output(game, initial_comp_algo, height, width, initial_components, visualise = False):
+def apply_tsne_to_compressed_output(game, initial_comp_algo, initial_components, visualise = False):
     initial_compression = pd.DataFrame()
 
-    initial_compression = multigenerator_compression(game,initial_comp_algo, height, width, initial_components)
+    initial_compression = multigenerator_compression(game,initial_comp_algo, initial_components)
     gen_name_list = initial_compression['generator_name'].tolist()
     #tsneinfo = get_tsne_projection_from_onehot(initial_compression.drop('generator_name', axis=1), prev_algo = algotype)
     tsneinfo = get_compression_algo_projection(initial_compression.drop('generator_name', axis=1), CompressionType.TSNE, columnPrefix = initial_comp_algo.name)
@@ -717,12 +773,14 @@ def gen_compression_dist_df_from_leveldict(level_wrapper_dict, algolist, bclist,
     for (x,y) in ((x,y) for x in level_wrapper_dict for y in level_wrapper_dict if x!=y):
         level1 = level_wrapper_dict[x]
         level2 = level_wrapper_dict[y]
+        algo_vals_list = get_compvals_for_algolist_for_levelpair(level1, level2,algolist)
         algo_dist_list = get_distances_for_algolist_for_levelpair(level1, level2,algolist)
+        bc_vals_list = get_bcvals_for_bclist_for_levelpair(level1, level2, bclist)
         bc_dist_list = get_differences_for_bclist_for_levelpair(level1, level2, bclist)
         
         #tsnepca_distance = calculateDistance(level1.TSNE_PCA1, level1.TSNE_PCA2, level2.TSNE_PCA1, level2.TSNE_PCA2)
         #bc_dist_list.append(abs(level1.empty_space - level2.empty_space))
-        levelpair_row = [level1.name, level1.generator_name, level2.name , level2.generator_name] + algo_dist_list + bc_dist_list
+        levelpair_row = [level1.name, level1.generator_name, level2.name , level2.generator_name] + algo_vals_list+ algo_dist_list + bc_vals_list + bc_dist_list
         output_dict[counter] = levelpair_row
         
         #empty_space_dist = abs(level1.empty_space - level2.empty_space)
@@ -736,10 +794,10 @@ def gen_compression_dist_df_from_leveldict(level_wrapper_dict, algolist, bclist,
         if (counter>maxpairs):
             break
 
-    algodist_colnames = gen_distnames_for_algos(algolist)
-    bc_dist_colnames = gen_diffnames_for_bcs(bclist)
+    algo_colnames = gen_valanddist_colnames_for_algos(algolist)
+    bc_colnames = gen_valanddiff_colnames_for_bcs(bclist)
 
-    outputdf = pd.DataFrame.from_dict(output_dict, orient = 'index', columns = (['Level1', 'Level1 Generator',  'Level2', 'Level2 Generator'] + algodist_colnames + bc_dist_colnames))
+    outputdf = pd.DataFrame.from_dict(output_dict, orient = 'index', columns = (['Level1', 'Level1 Generator',  'Level2', 'Level2 Generator'] + algo_colnames + bc_colnames))
 
     print("Total runtime: " + str(datetime.now () -start_time) + " seconds")
     print(str(counter) + " Level Pairs assessed for game: " + game.name)
@@ -750,14 +808,14 @@ def gen_compression_dist_df_from_leveldict(level_wrapper_dict, algolist, bclist,
     return outputdf
 
 #Generates a feature distance dataframe for all level pairs in a folder
-def generate_analytics_for_all_level_pairs(game, height, width, component_count, output_file_name, algolist, bclist, maxpairs = 100000, visualise = False):
+def generate_analytics_for_all_level_pairs(game, component_count, output_file_name, algolist, bclist, maxpairs = 100000, visualise = False):
     
-    complete_level_dict = get_and_update_levels_for_algo_list(game, height, width, component_count, algolist)
+    complete_level_dict = get_and_update_levels_for_algo_list(game, component_count, algolist, visualise)
 
     return gen_compression_dist_df_from_leveldict(complete_level_dict, algolist,bclist, maxpairs, output_file_name)
 
-def generate_feature_dataframe(game, height, width, component_count, output_file_name, algolist, visualise = False):
-    complete_level_dict = get_and_update_levels_for_algo_list(game, height, width, component_count, algolist)
+def generate_feature_dataframe(game,  component_count, output_file_name, algolist, visualise = False):
+    complete_level_dict = get_and_update_levels_for_algo_list(game, component_count, algolist, visualise)
 
     counter = 0
     start_time = datetime.now()
@@ -780,22 +838,21 @@ def generate_feature_dataframe(game, height, width, component_count, output_file
 
 #Testing wrapper function
 #Note: Will only work on Boxoban for now, we need custom methods for getting column names for game specific features etc
-test_width = 10
-test_height = 10
 test_comp = 2
-game = Game.Boxoban
+game = Game.Mario
 algolist = [CompressionType.PCA, CompressionType.MCA, CompressionType.SVD, CompressionType.KernelPCA, CompressionType.TSNE]
 #bclist = [BCType.EmptySpace, BCType.EnemyCount]
-bclist = [BCType.EmptySpace]
-max_pairs = 1000
+bclist = [BCType.EmptySpace, BCType.EnemyCount, BCType.Linearity]
+max_pairs = 1000000000
 visualise = False
+filename = game.name + "-final"
 
-test_output = generate_analytics_for_all_level_pairs(game, test_height, test_width, test_comp, 'wrapped_box_output',algolist, bclist, max_pairs, visualise)
+test_output = generate_analytics_for_all_level_pairs(game, test_comp, filename,algolist, bclist, max_pairs, visualise)
 
 print("head of test output:")
 print(test_output.head())
 
-get_linear_correlations_from_df(test_output, algolist, bclist)
+get_linear_correlations_from_df(test_output, algolist, bclist, filename)
 
 """
 PCAVals = test_output[['PCADist']].values.reshape(-1)
