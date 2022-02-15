@@ -3,6 +3,7 @@ from math import nan
 from enum import Enum
 import os
 import math
+import random
 from turtle import distance
 #from statistics import LinearRegression
 import matplotlib
@@ -83,7 +84,6 @@ mario_tiletypes_dict_condensed = {
     "?":int(4),"@":int(4),"Q":int(4),"!":int(4),"1":int(4),"2":int(4),"C":int(4),"U":int(4),"L":int(4),"o":int(4)
 }
 
-
 #Dictionary of tiletypes in boxoban, the google deepmind clone of sokoban
 
 boxoban_tiletypes_dict = {
@@ -112,7 +112,8 @@ loderunnder_folders_dict = {
 
 boxoban_folders_dict = {
     'Medium' : (boxoban_root + 'medium/train/'),
-    'Hard' : (boxoban_root + 'hard/')
+    'Hard' : (boxoban_root + 'hard/'),
+    'unfiltered': (boxoban_root +'unfiltered/train/')
 }
 
 boxoban_files_dict = {
@@ -159,7 +160,7 @@ def char_matrix_from_file(path):
 
 #Custom function for boxoban files as they are stored with multiple in each file
 #Returns a dictionary of level names and associated character matrixes 
-def get_boxoban_leveldict_from_file(file_name, file_dict_key):
+def get_boxoban_leveldict_from_file(file_name):
     level_reps = dict()
     line_counter = 0
     buffer = list()
@@ -177,9 +178,9 @@ def get_boxoban_leveldict_from_file(file_name, file_dict_key):
                     char_matrix = np.reshape(buffer,(boxoban_height, boxoban_width), order = 'C')
                     #level_reps[int(temp_levelname)] = char_matrix
                     #level_reps[file_dict_key +':'+ temp_levelname] = LevelWrapper(temp_levelname, file_dict_key, char_matrix)
-                    new_level = BoxobanLevel(temp_levelname, file_dict_key, char_matrix)
+                    new_level = BoxobanLevel(temp_levelname, file_name, char_matrix)
                     #new_level.calc_behavioral_features()
-                    level_reps[file_dict_key +':'+ temp_levelname] = new_level
+                    level_reps[file_name +':'+ temp_levelname] = new_level
 
                     temp_levelname = ""
                     buffer.clear()
@@ -210,10 +211,31 @@ def get_leveldict_from_folder(path, folder_key, game):
 
     return level_reps
 
+#Get a randomly selected set of levels of size filecount from a folder
+#Needs refactoring as it mirrors a lot of get_levledict_from_folder
+def get_randnum_levelwrappers_folder(path, folder_key, game, count):
+    file_names = get_filenames_from_folder(path)
+    window_height, window_width = get_level_heightandwidth_for_game(game)
+    #folder_name = os.path.basename(os.path.normpath(path))
+    level_reps = dict()
+    counter = 0
+    while counter < count:
+        #print("Counter at: " + str(counter) + " picking from filename list length:  " + str(len(file_names)))
+        #Pick random file and then remove it from the list
+        level = random.choice(file_names)
+        file_names.remove(level)
+        level_name = os.path.basename(level)
+        char_rep = char_matrix_from_file(level)
+        char_rep_window = take_window_from_bottomright(char_rep, window_width, window_height)
+        level_reps[folder_key +':'+ level_name] = generate_levelwrapper_for_game(game, level_name, folder_key, char_rep_window)
+        counter+=1
+
+    return level_reps
+
+
 #Get a combined levelwrapper dictionary from a folder dictionary
 def get_leveldicts_from_folder_set(game):
     level_dict = dict()
-
     game_info = get_folder_and_tiletypedict_for_game(game)
     folder_dict = game_info['Folder_Dict']
 
@@ -223,6 +245,31 @@ def get_leveldicts_from_folder_set(game):
         level_dict = level_dict|temp_dict
     return level_dict
 
+def get_randnum_levelwrappers(game, count):
+    level_dict = dict()
+    game_info = get_folder_and_tiletypedict_for_game(game)
+    folder_dict = game_info['Folder_Dict']
+
+    for folder in folder_dict:
+        #Get all one for for specific folder
+        temp_dict = get_randnum_levelwrappers_folder(folder_dict[folder], folder, game, count)
+        level_dict = level_dict|temp_dict
+    return level_dict   
+
+"""
+def get_randomlyselected_leveldicts_from_folder_set(game, filecount):
+    level_dict = dict()
+    game_info = get_folder_and_tiletypedict_for_game(game)
+    folder_dict = game_info['Folder_Dict']
+
+    for folder in folder_dict:
+        #Get all one for for specific folder
+        temp_dict = get_randomlyselected_leveldict_from_folder(folder_dict[folder], folder, game, filecount)
+        level_dict = level_dict|temp_dict
+    return level_dict
+
+"""
+
 #Get a dictionary of dictionarys (BoxobanFilename: Level Dict) from a Boxoban file
 def get_leveldicts_from_boxoban_files(files_dict):
     files_level_dict = dict()
@@ -231,6 +278,23 @@ def get_leveldicts_from_boxoban_files(files_dict):
         #files_level_dict[file] = temp_dict
         files_level_dict = files_level_dict|temp_dict
     return files_level_dict
+
+def get_randnum_levelwrappers_boxoban(folders_dict, count):
+    levelwrapper_dict = dict()
+    counter = 0
+    for folder in folders_dict:
+        #List all files in folder
+        file_list = get_filenames_from_folder(folders_dict[folder])
+        while counter < count:
+            #print("Counter at: " + str(counter) + " picking from filename list length:  " + str(len(file_list)) + " for folder: " + folder)
+            randfile = random.choice(file_list)
+            temp_dict = get_boxoban_leveldict_from_file(randfile)
+            file_list.remove(randfile)
+            levelwrapper_dict = levelwrapper_dict|temp_dict
+            counter+=1
+        counter = 0
+    return levelwrapper_dict
+
 
 #############################################
 #WNDOW GRABBING  METHODS
@@ -377,6 +441,12 @@ def get_file_dict_for_gametype(game):
         return get_leveldicts_from_boxoban_files(boxoban_files_dict)
     else: 
         return get_leveldicts_from_folder_set(game)
+
+def get_randnum_levelwrappers_for_game(game, count):
+    if game == Game.Boxoban:
+        return get_randnum_levelwrappers_boxoban(boxoban_folders_dict, count)
+    else: 
+        return get_randnum_levelwrappers(game, count)    
 
 def get_folder_and_tiletypedict_for_game(game):
     output = dict()
@@ -562,16 +632,29 @@ def update_levelwrapper_datacomp_features(level_dict, compdf, compression_type):
     return level_dict
 
 #Returns a dictionary of level wrappers with their dimensionality reduction algorithm locations specified
+"""
 def get_and_update_levels_for_algo_list(game, component_count, algolist, visualise = False):
     level_wrapper_dict = get_file_dict_for_gametype(game)
     #pca_output = multigenerator_pca_analysis(game, height, width, component_count, visualise=True)
 
     for algo in algolist:
-        algo_output = multigenerator_compression(game, algo, component_count, visualise)
+        algo_output = multigenerator_compression(level_wrapper_dict, game, algo, component_count, visualise)
         level_wrapper_dict = update_levelwrapper_datacomp_features(level_wrapper_dict, algo_output, algo)
 
     return copy.deepcopy(level_wrapper_dict)
+"""
+def get_and_update_X_levels_for_algo_list(game, component_count, algolist, count, visualise = False):
+    print("Starting level wrapper generation")
+    level_wrapper_dict = get_randnum_levelwrappers_for_game(game, count)
+    #pca_output = multigenerator_pca_analysis(game, height, width, component_count, visualise=True)
 
+    print("Starting compression algorithm process")
+    for algo in algolist:
+        print("Running algo : " + algo.name)
+        algo_output = multigenerator_compression(level_wrapper_dict, game, algo, component_count, visualise)
+        level_wrapper_dict = update_levelwrapper_datacomp_features(level_wrapper_dict, algo_output, algo)
+
+    return copy.deepcopy(level_wrapper_dict)
 #########################
 #Graphing and Visualisation Methods
 
@@ -696,7 +779,9 @@ def get_linear_correlations_from_df(df, algolist, bclist, filename):
     dists_list = gen_distnames_for_algos(algolist)
     bc_diff_list = gen_diffnames_for_bcs(bclist)
 
-    outputfile = open(filename + "correlations.txt", "x")
+    curr_time = datetime.now().strftime("%m_%d_%H_%M_%S")
+
+    outputfile = open(filename + "correlations" + curr_time + ".txt", "x")
 
     for compression_dist in dists_list:
         vals = df[[compression_dist]].values.reshape(-1)
@@ -714,19 +799,20 @@ def get_linear_correlations_from_df(df, algolist, bclist, filename):
 ################################
 #MULTIGENERATOR METHODS
 
-def multigenerator_compression(game, comp_algo, component_count = 2, visualise = False):
+def multigenerator_compression(levelwrapper_dict, game, comp_algo, component_count = 2, visualise = False):
     game_info = get_folder_and_tiletypedict_for_game(game)
     folder_dict = game_info['Folder_Dict']
     tile_dict = game_info['Tile_Type_Dict']
-    level_dict = get_file_dict_for_gametype(game)
+    #level_dict = get_file_dict_for_gametype(game)
+
 
     height, width = get_level_heightandwidth_for_game(game)
 
     processed_levels = None
     if (comp_algo == CompressionType.MCA):
-        processed_levels = get_compiled_char_representations_from_level_dict(level_dict, height, width)
+        processed_levels = get_compiled_char_representations_from_level_dict(levelwrapper_dict, height, width)
     else:
-        processed_levels = get_compiled_onehot_from_leveldict(level_dict, tile_dict, height, width)
+        processed_levels = get_compiled_onehot_from_leveldict(levelwrapper_dict, tile_dict, height, width)
 
     gen_name_list = processed_levels['generator_name'].tolist()
     #tsne_info = get_tsne_projection_from_onehot(all_levels_onehot.drop('generator_name', axis=1))
@@ -758,11 +844,13 @@ def apply_tsne_to_compressed_output(game, initial_comp_algo, initial_components,
 ###################################
 #WRAPPER METHODS
 
+""""
 #Generates a compiled onehot dataframe from a boxoban file
 def get_all_one_hot_boxoban_from_file(path, tile_dict):
      
     level_dict = get_boxoban_leveldict_from_file(path)
     return get_compiled_onehot_from_leveldict(level_dict, tile_dict, 10, 10)
+"""
 
 #Generates a dataframe of level pairs and the feature distances between them
 def gen_compression_dist_df_from_leveldict(level_wrapper_dict, algolist, bclist, maxpairs, output_file_name):
@@ -808,12 +896,15 @@ def gen_compression_dist_df_from_leveldict(level_wrapper_dict, algolist, bclist,
     return outputdf
 
 #Generates a feature distance dataframe for all level pairs in a folder
-def generate_analytics_for_all_level_pairs(game, component_count, output_file_name, algolist, bclist, maxpairs = 100000, visualise = False):
+def generate_analytics_for_all_level_pairs(game, levelspersetcount, component_count, output_file_name, algolist, bclist, maxpairs = 100000, visualise = False):
     
-    complete_level_dict = get_and_update_levels_for_algo_list(game, component_count, algolist, visualise)
-
+    #complete_level_dict = get_and_update_levels_for_algo_list(game, component_count, algolist, visualise)
+    print("Starting level dict generation")
+    complete_level_dict = get_and_update_X_levels_for_algo_list(game, component_count, algolist, levelspersetcount, visualise)
+    print("Starting compression df generation")
     return gen_compression_dist_df_from_leveldict(complete_level_dict, algolist,bclist, maxpairs, output_file_name)
 
+"""
 def generate_feature_dataframe(game,  component_count, output_file_name, algolist, visualise = False):
     complete_level_dict = get_and_update_levels_for_algo_list(game, component_count, algolist, visualise)
 
@@ -835,22 +926,25 @@ def generate_feature_dataframe(game,  component_count, output_file_name, algolis
     curr_time = datetime.now().strftime("%m_%d_%H_%M_%S")
     outputdf.to_csv(output_file_name + curr_time +'.csv', index = False)
     return outputdf
+"""
+
 
 #Testing wrapper function
 #Note: Will only work on Boxoban for now, we need custom methods for getting column names for game specific features etc
 test_comp = 2
-game = Game.Mario
+game = Game.Boxoban
 algolist = [CompressionType.PCA, CompressionType.MCA, CompressionType.SVD, CompressionType.KernelPCA, CompressionType.TSNE]
 #bclist = [BCType.EmptySpace, BCType.EnemyCount]
-bclist = [BCType.EmptySpace, BCType.EnemyCount, BCType.Linearity]
-max_pairs = 1000000000
+bclist = [BCType.EmptySpace]
+max_pairs = 100000
 visualise = False
-filename = game.name + "-final"
+levelcountperset = 3
+filename = game.name + "-boxoconsistancy"
 
-test_output = generate_analytics_for_all_level_pairs(game, test_comp, filename,algolist, bclist, max_pairs, visualise)
+test_output = generate_analytics_for_all_level_pairs(game, levelcountperset, test_comp, filename,algolist, bclist, max_pairs, visualise)
 
-print("head of test output:")
-print(test_output.head())
+#print("head of test output:")
+#print(test_output.head())
 
 get_linear_correlations_from_df(test_output, algolist, bclist, filename)
 
