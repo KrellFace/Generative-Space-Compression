@@ -56,11 +56,11 @@ class CompressionType(Enum):
     MCA = 2,
     SVD = 3,
     TSNE = 4,
-    PCATSNE = 5,
-    MCATSNE = 6,
-    SVDTSNE = 7,
+    KPCA_POLY = 5,
+    KPCA_RBF = 6,
+    KPCA_SIGMOID = 7,
     SparsePCA = 8,
-    KernelPCA = 9
+    KPCA_COSINE = 9
 
 class BCType(Enum):
     EmptySpace = 1,
@@ -144,9 +144,9 @@ color_dict = dict({0:'brown',
                 3: 'red',
                 4: 'dodgerblue',
                 5: 'darkmagenta',
-                6: 'lightcoral',
+                6: 'fuchsia',
                 7: 'lime',
-                8: 'firebrick',
+                8: 'cyan',
                 9: 'cadetblue'})
 
 #######################################
@@ -485,11 +485,18 @@ def get_feature_names_for_compression_type(algotype):
     elif (algotype == CompressionType.MCA):
         return ['MCA1Val', 'MCA2Val']
     elif (algotype == CompressionType.TSNE):
-        return ['TSNEVal1', 'TSNEVal2']    
-    elif (algotype == CompressionType.KernelPCA):
-        return ['KernelPCA1', 'KernelPCA2']
+        return ['TSNEVal1', 'TSNEVal2']
     elif (algotype == CompressionType.SVD):
-        return ['SVD1Val', 'SVD2Val']
+        return ['SVD1Val', 'SVD2Val']    
+    elif (algotype == CompressionType.KPCA_POLY):
+        return ['KPCAPolyVal1', 'KPCAPolyVal2']
+    elif (algotype == CompressionType.KPCA_COSINE):
+        return ['KPCACosineVal1', 'KPCACosineVal2']
+    elif (algotype == CompressionType.KPCA_RBF):
+        return ['KPCARbfVal1', 'KPCARbfVal2']
+    elif (algotype == CompressionType.KPCA_SIGMOID):
+        return ['KPCASigmoidVal1', 'KPCASigmoidVal2']
+
 
 def get_compvals_for_algolist_for_levelpair(level1, level2, algolist):
     vals = []
@@ -502,8 +509,14 @@ def get_compvals_for_algolist_for_levelpair(level1, level2, algolist):
             vals+= [level1.MCA1Val, level1.MCA2Val, level2.MCA1Val, level2.MCA2Val]
         elif (algo == CompressionType.TSNE):
             vals+= [level1.TSNEVal1, level1.TSNEVal2, level2.TSNEVal1, level2.TSNEVal2]
-        elif (algo == CompressionType.KernelPCA):
-            vals+=[level1.KernelPCA1, level1.KernelPCA2, level2.KernelPCA1, level2.KernelPCA2]
+        elif (algo == CompressionType.KPCA_SIGMOID):
+            vals+=[level1.KPCASigmoidVal1, level1.KPCASigmoidVal2, level2.KPCASigmoidVal1, level2.KPCASigmoidVal2]
+        elif (algo == CompressionType.KPCA_COSINE):
+            vals+=[level1.KPCACosineVal1, level1.KPCACosineVal2, level2.KPCACosineVal1, level2.KPCACosineVal2]    
+        elif (algo == CompressionType.KPCA_POLY):
+            vals+=[level1.KPCAPolyVal1, level1.KPCAPolyVal2, level2.KPCAPolyVal1, level2.KPCAPolyVal2]           
+        elif (algo == CompressionType.KPCA_RBF):
+            vals+=[level1.KPCARbfVal1, level1.KPCARbfVal2, level2.KPCARbfVal1, level2.KPCARbfVal2]                        
         else:
             print("Algo not recognised in get vals method")
     return vals
@@ -518,8 +531,14 @@ def get_distances_for_algolist_for_levelpair(level1, level2, algolist):
             distances.append(calculateDistance(level1.MCA1Val, level1.MCA2Val, level2.MCA1Val, level2.MCA2Val))
         elif (algo == CompressionType.TSNE):
             distances.append(calculateDistance(level1.TSNEVal1, level1.TSNEVal2, level2.TSNEVal1, level2.TSNEVal2))
-        elif (algo == CompressionType.KernelPCA):
-            distances.append(calculateDistance(level1.KernelPCA1, level1.KernelPCA2, level2.KernelPCA1, level2.KernelPCA2))
+        elif (algo == CompressionType.KPCA_SIGMOID):
+            distances.append(calculateDistance(level1.KPCASigmoidVal1, level1.KPCASigmoidVal2, level2.KPCASigmoidVal1, level2.KPCASigmoidVal2))
+        elif (algo == CompressionType.KPCA_COSINE):
+            distances.append(calculateDistance(level1.KPCACosineVal1, level1.KPCACosineVal2, level2.KPCACosineVal1, level2.KPCACosineVal2))  
+        elif (algo == CompressionType.KPCA_POLY):
+            distances.append(calculateDistance(level1.KPCAPolyVal1, level1.KPCAPolyVal2, level2.KPCAPolyVal1, level2.KPCAPolyVal2))           
+        elif (algo == CompressionType.KPCA_RBF):
+            distances.append(calculateDistance(level1.KPCARbfVal1, level1.KPCARbfVal2, level2.KPCARbfVal1, level2.KPCARbfVal2))
         else:
             print("Algo not recognised in get distances method")
     return distances
@@ -612,21 +631,27 @@ def update_levelwrapper_datacomp_features(level_dict, compdf, compression_type):
             #print('PCA1 Val for level = ' + level + ". " + str(compdf.loc[level]['PC 1']))
             level_dict[level].SVD1Val = compdf.loc[level][compression_type.name+' 1']
             level_dict[level].SVD2Val = compdf.loc[level][compression_type.name+' 2']
-    elif (compression_type == CompressionType.PCATSNE):
-        for level in level_dict:
-            #print('PCA1 Val for level = ' + level + ". " + str(compdf.loc[level]['PC 1']))
-            level_dict[level].TSNE_PCA1 = compdf.loc[level][compression_type.name+' 1']
-            level_dict[level].TSNE_PCA2 = compdf.loc[level][compression_type.name+' 2']
     elif (compression_type == CompressionType.TSNE):
         for level in level_dict:
             #print('PCA1 Val for level = ' + level + ". " + str(compdf.loc[level]['PC 1']))
             level_dict[level].TSNEVal1 = compdf.loc[level][compression_type.name+' 1']
             level_dict[level].TSNEVal2 = compdf.loc[level][compression_type.name+' 2']
-    elif (compression_type == CompressionType.KernelPCA):
+    elif (compression_type == CompressionType.KPCA_SIGMOID):
         for level in level_dict:
-            #print('PCA1 Val for level = ' + level + ". " + str(compdf.loc[level]['PC 1']))
-            level_dict[level].KernelPCA1 = compdf.loc[level][compression_type.name+' 1']
-            level_dict[level].KernelPCA2 = compdf.loc[level][compression_type.name+' 2']        
+            level_dict[level].KPCASigmoidVal1 = compdf.loc[level][compression_type.name+' 1']
+            level_dict[level].KPCASigmoidVal2 = compdf.loc[level][compression_type.name+' 2']
+    elif (compression_type == CompressionType.KPCA_COSINE):
+        for level in level_dict:
+            level_dict[level].KPCACosineVal1 = compdf.loc[level][compression_type.name+' 1']
+            level_dict[level].KPCACosineVal2 = compdf.loc[level][compression_type.name+' 2']  
+    elif (compression_type == CompressionType.KPCA_POLY):
+        for level in level_dict:
+            level_dict[level].KPCAPolyVal1 = compdf.loc[level][compression_type.name+' 1']
+            level_dict[level].KPCAPolyVal2 = compdf.loc[level][compression_type.name+' 2']            
+    elif (compression_type == CompressionType.KPCA_RBF):
+        for level in level_dict:
+            level_dict[level].KPCARbfVal1 = compdf.loc[level][compression_type.name+' 1']
+            level_dict[level].KPCARbfVal2 = compdf.loc[level][compression_type.name+' 2']  
     else:
         print('Algo type not recognised')
     return level_dict
@@ -671,12 +696,16 @@ def plot_compressed_data(toplot, var_exp, compTyp, file_name, gen_names=[]):
     fig = plt.figure(figsize = (8,8))
     ax = fig.add_subplot(1,1,1) 
     if len(var_exp)>0:
-        ax.set_xlabel(compTyp.name + ' 1: ' + str("{0:.3%}".format(var_exp[0])), fontsize = 15)
-        ax.set_ylabel(compTyp.name +' 2: ' + str("{0:.3%}".format(var_exp[1])), fontsize = 15)
+        #ax.set_xlabel(compTyp.name + ' 1: ' + str("{0:.3%}".format(var_exp[0])), fontsize = 15)
+        #ax.set_ylabel(compTyp.name +' 2: ' + str("{0:.3%}".format(var_exp[1])), fontsize = 15)
+        ax.set_xlabel(compTyp.name + ' 1: ', fontsize = 15)
+        ax.set_ylabel(compTyp.name +' 2', fontsize = 15)
     else:
         ax.set_xlabel(compTyp.name + ' 1', fontsize = 15)
-        ax.set_ylabel(compTyp.name +' 2', fontsize = 15)        
-    ax.set_title(compTyp.name, fontsize = 20)
+        ax.set_ylabel(compTyp.name +' 2', fontsize = 15) 
+    title = os.path.basename(file_name)
+    #Set title without .png     
+    ax.set_title(title[0:len(title)-4], fontsize = 20)
 
     #Color each generators points differently if we are running for multiple alternatives
     if len(gen_names)>0:
@@ -690,12 +719,13 @@ def plot_compressed_data(toplot, var_exp, compTyp, file_name, gen_names=[]):
             ax.scatter(toplot.loc[to_keep, col1name]
                         , toplot.loc[to_keep, col2name]
                         , c = [rgb]
+                        , alpha = 0.5
                         , s = 50)
     #For single generator
     else:
         ax.scatter(toplot[0].loc[:, col1name]
                     , toplot[0].loc[:, col2name]
-                    , s = 50)       
+                    , s = 20)       
     
     """
     coord_dict = return_coord_dict_fromcoord_lists(toplot.index, toplot[col1name].tolist(), toplot[col2name].tolist())
@@ -740,9 +770,33 @@ def get_compression_algo_projection(input, compTyp, columnPrefix = '', component
         tsne.fit(input)
         projectedValues = tsne.fit_transform(input) 
         varExplained = []
-    elif compTyp == CompressionType.KernelPCA:
+    elif compTyp == CompressionType.KPCA_POLY:
         #scaledinput = StandardScaler().fit_transform(input)
         kpca = KernelPCA(n_components=component_count, kernel='poly')
+        kpca.fit(input)
+        projectedValues = kpca.fit_transform(input) 
+        #Calculate Explained Variance
+        explained_variance = np.var(projectedValues, axis=0)
+        varExplained = explained_variance / np.sum(explained_variance)
+    elif compTyp == CompressionType.KPCA_COSINE:
+        #scaledinput = StandardScaler().fit_transform(input)
+        kpca = KernelPCA(n_components=component_count, kernel='cosine')
+        kpca.fit(input)
+        projectedValues = kpca.fit_transform(input) 
+        #Calculate Explained Variance
+        explained_variance = np.var(projectedValues, axis=0)
+        varExplained = explained_variance / np.sum(explained_variance)
+    elif compTyp == CompressionType.KPCA_RBF:
+        #scaledinput = StandardScaler().fit_transform(input)
+        kpca = KernelPCA(n_components=component_count, kernel='rbf')
+        kpca.fit(input)
+        projectedValues = kpca.fit_transform(input) 
+        #Calculate Explained Variance
+        explained_variance = np.var(projectedValues, axis=0)
+        varExplained = explained_variance / np.sum(explained_variance)
+    elif compTyp == CompressionType.KPCA_SIGMOID:
+        #scaledinput = StandardScaler().fit_transform(input)
+        kpca = KernelPCA(n_components=component_count, kernel='sigmoid')
         kpca.fit(input)
         projectedValues = kpca.fit_transform(input) 
         #Calculate Explained Variance
@@ -809,13 +863,20 @@ def multigenerator_compression(levelwrapper_dict, game, comp_algo, component_cou
 ###################################
 #WRAPPER METHODS
 #Generates a dataframe of level pairs and the feature distances between them
-def gen_compression_dist_df_from_leveldict(level_wrapper_dict, algolist, bclist, output_file_path):
+def gen_compression_dist_df_from_leveldict(level_wrapper_dict, algolist, bclist, analytics_filepath, exemplars_filepath):
     pair_counter = 0
     start_time = datetime.now()
     output_dict = dict()
     #processed_pairs = list()
 
     uniquepairs = list(it.combinations(level_wrapper_dict, 2))
+
+    #Initialise storage for the closest and furthest level pairs for each compression
+    #Stored as Key: [AlgoName, "Closest" or "Furthest"] Value: [CurrentExamplar Row, Current Examplar Value]
+    nearfar_exemplar_dict = dict()
+    for algo in algolist:
+        nearfar_exemplar_dict[algo.name + " Closest"] = [-1, 10000]
+        nearfar_exemplar_dict[algo.name + " Furthest"] = [-1, 0]
 
     for pair in uniquepairs:
         level1 = level_wrapper_dict[pair[0]]
@@ -829,6 +890,13 @@ def gen_compression_dist_df_from_leveldict(level_wrapper_dict, algolist, bclist,
         #bc_dist_list.append(abs(level1.empty_space - level2.empty_space))
         levelpair_row = [level1.name, level1.generator_name, level2.name , level2.generator_name] + algo_vals_list+ algo_dist_list + bc_vals_list + bc_dist_list
         output_dict[pair_counter] = levelpair_row
+
+        #Update nearfar dict
+        for i in range(0,len(algolist)):
+            if (algo_dist_list[i]<nearfar_exemplar_dict[algolist[i].name+" Closest"][1]):
+                nearfar_exemplar_dict[algolist[i].name+" Closest"] = [pair_counter, algo_dist_list[i]]
+            if (algo_dist_list[i]>nearfar_exemplar_dict[algolist[i].name+" Furthest"][1]):
+                nearfar_exemplar_dict[algolist[i].name+" Furthest"] = [pair_counter, algo_dist_list[i]]
         
         pair_counter+=1
 
@@ -841,18 +909,29 @@ def gen_compression_dist_df_from_leveldict(level_wrapper_dict, algolist, bclist,
 
     outputdf = pd.DataFrame.from_dict(output_dict, orient = 'index', columns = (['Level1', 'Level1 Generator',  'Level2', 'Level2 Generator'] + algo_colnames + bc_colnames))
 
+    print("Nearfar exemplar:")
+    print(nearfar_exemplar_dict)
+    #Extract closest furthest exemplars
+    exemplardict = dict()
+    for exemp in nearfar_exemplar_dict:
+        counter_val = nearfar_exemplar_dict[exemp][0]
+        exemplardict[exemp] = [exemp] + output_dict[counter_val]
+    exemplardf = pd.DataFrame.from_dict(exemplardict, orient = 'index', columns = (['ExemplarType', 'Level1', 'Level1 Generator',  'Level2', 'Level2 Generator'] + algo_colnames + bc_colnames))
+    
+    exemplardf.to_csv(exemplars_filepath, index= False )
+
     print("Total runtime: " + str(datetime.now () -start_time) + " seconds")
 
     curr_time = datetime.now().strftime("%m_%d_%H_%M_%S")
-    outputdf.to_csv(output_file_path, index= False )
+    #outputdf.to_csv(analytics_filepath, index= False )
     return outputdf
 
 #Generates a feature distance dataframe for all level pairs in a folder
-def generate_analytics_for_all_level_pairs(game, maxlvlsevaled, component_count, output_file_path, algolist, bclist, visualise = False, file_root = ""):
+def generate_analytics_for_all_level_pairs(game, maxlvlsevaled, component_count, analytics_filepath, exemplars_filepath, algolist, bclist, visualise = False, file_root = ""):
     
     #complete_level_dict = get_and_update_levels_for_algo_list(game, component_count, algolist, visualise)
     complete_level_dict = get_and_update_X_levels_for_algo_list(game, component_count, algolist, maxlvlsevaled, visualise, file_root)
-    return gen_compression_dist_df_from_leveldict(complete_level_dict, algolist,bclist, output_file_path)
+    return gen_compression_dist_df_from_leveldict(complete_level_dict, algolist,bclist, analytics_filepath, exemplars_filepath)
 
 
 def multidomain_multiruns(games, component_count, algolist, tot_lvls_evaled_per_run, runs_per_game, file_prefix, visualise = False):
@@ -866,15 +945,16 @@ def multidomain_multiruns(games, component_count, algolist, tot_lvls_evaled_per_
         runcount = 0
         while runcount < runs_per_game:
             runpath = file_prefix + "/" + "Run " + str(runcount+1) + "/"
-            analyticsfilepath = Path(runpath + game.name + ".csv")
+            analyticsfilepath = Path(runpath + game.name + "TotalAnalytics.csv")
             analyticsfilepath.parent.mkdir(parents =True, exist_ok=True)
+            exemplarsfilepath = Path(runpath + game.name + "Exemplars.csv")
             output = None
             images_root = runpath + game.name
             #Need to hardcode loderunner to be only the 150 we have available
             if (game == Game.Loderunner):
-                output = generate_analytics_for_all_level_pairs(game, 150, component_count, analyticsfilepath, algolist, bclist, visualise,images_root)
+                output = generate_analytics_for_all_level_pairs(game, 150, component_count, analyticsfilepath,exemplarsfilepath, algolist, bclist, visualise,images_root)
             else:
-                output = generate_analytics_for_all_level_pairs(game, tot_lvls_evaled_per_run, component_count, analyticsfilepath, algolist, bclist, visualise,images_root)
+                output = generate_analytics_for_all_level_pairs(game, tot_lvls_evaled_per_run, component_count, analyticsfilepath,exemplarsfilepath, algolist, bclist, visualise,images_root)
             linncorrs = list()
             linncorrs.append(game.name)
             lincorrsfilepath = Path(runpath + game.name + " Run " + str(runcount+1) + ".txt")
@@ -892,35 +972,18 @@ def multidomain_multiruns(games, component_count, algolist, tot_lvls_evaled_per_
     finaloutputpath = Path(file_prefix+ "/" + "Total Lin Corrs " + file_prefix +'.csv')
     finallinncorrsdf.to_csv(finaloutputpath, index = False)
 
-    """
-    summaryoutputpath = Path(file_prefix+ "/" + "FinalSummary " + file_prefix +'.txt')
-    #Generate the summary text file for all runs:
-
-    summaryfile = open(summaryoutputpath, "x")
-
-    for game in games:
-        summaryfile.write(game.name + " Info: " + "\n")
-        for algo in algolist:
-            bclist = None
-            if (game == Game.Boxoban):
-                bclist = [BCType.EmptySpace, BCType.Contiguity]
-            else:
-                bclist = [BCType.EmptySpace, BCType.EnemyCount, BCType.Linearity]
-            for bc in bclist:
-                filtereddf = 
-                avg_spearman_coeff = 
-    """
 
 
 #Testing multirun wrapper functions
 
 component_count = 2
 games = [Game.Boxoban, Game.Mario, Game.Loderunner]
-algolist = [CompressionType.PCA, CompressionType.MCA, CompressionType.SVD, CompressionType.TSNE]
-tot_lvls_evaled = 5000
-runs_per_game = 5
+#algolist = [CompressionType.PCA, CompressionType.MCA, CompressionType.SVD, CompressionType.TSNE]
+algolist = [CompressionType.KPCA_SIGMOID, CompressionType.KPCA_POLY, CompressionType.KPCA_RBF, CompressionType.KPCA_COSINE]
+tot_lvls_evaled = 500
+runs_per_game = 1
 visualise = True
-fileprefix =  "Five Full Runs"
-
+fileprefix =  "KPCA Method Testing"
+      
 multidomain_multiruns(games, component_count, algolist, tot_lvls_evaled, runs_per_game, fileprefix, visualise)
 

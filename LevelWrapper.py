@@ -28,18 +28,17 @@ class LevelWrapper:
     TSNEVal1 = None
     TSNEVal2 = None 
 
-    KernelPCA1 = None
-    KernalPCA2 = None 
+    KPCAPolyVal1 = None
+    KPCAPolyVal2 = None 
 
-    TSNE_PCA1 = None
-    TSNE_PCA2 = None
+    KPCARbfVal1 = None
+    KPCARbfVal2 = None 
 
-    TSNE_MCA1 = None
-    TSNE_MCA2 = None
+    KPCASigmoidVal1 = None
+    KPCASigmoidVal2 = None 
 
-    TSNE_SVD1 = None
-    TSNE_SVD2 = None
-
+    KPCACosineVal1 = None
+    KPCACosineVal2 = None 
 
     def __init__(self, name, generator_name, char_rep):
         self.data = []
