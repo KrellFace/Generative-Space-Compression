@@ -1,9 +1,8 @@
-from LevelWrapper import LevelWrapper
-from BoxobanLevel import BoxobanLevel
-from MarioLevel import MarioLevel
-from LoderunnerLevel import LoderunnerLevel
+import os
+import random
+from EnumsAndConfig import *
+from WindowGrabbing import *
 from HelperMethods import *
-
 
 #Get a 2D character matrix from a level file 
 def char_matrix_from_file(path):
@@ -28,13 +27,14 @@ def char_matrix_from_file(path):
 
 #Custom function for boxoban files as they are stored with multiple in each file
 #Returns a dictionary of form Key: 'Holding filename : Level Name'  Value: LevelWrapper
-def get_boxoban_leveldict_from_file(file_name, counttoretrieve):
+def get_boxoban_leveldict_from_file(file_path, folder_name, counttoretrieve):
     level_reps = dict()
+    file_name = os.path.basename(file_path)
     line_counter = 0
     buffer = list()
     temp_levelname = ""
     counter = 0
-    with open(file_name) as file:
+    with open(file_path) as file:
         charlist = file.read()
         for char in charlist:
             #while counter < counttoretrieve:
@@ -48,16 +48,15 @@ def get_boxoban_leveldict_from_file(file_name, counttoretrieve):
                     char_matrix = np.reshape(buffer,(boxoban_height, boxoban_width), order = 'C')
                     #level_reps[int(temp_levelname)] = char_matrix
                     #level_reps[file_dict_key +':'+ temp_levelname] = LevelWrapper(temp_levelname, file_dict_key, char_matrix)
-                    new_level = BoxobanLevel(temp_levelname, file_name, char_matrix)
+                    new_level = BoxobanLevel(temp_levelname, get_n_last_subparts_path(file_path, 2), char_matrix)
                     #new_level.calc_behavioral_features()
-                    level_reps[file_name +':'+ temp_levelname] = new_level
+                    level_reps[folder_name +':'+ file_name+":"+temp_levelname] = new_level
                     temp_levelname = ""
                     buffer.clear()
-                    #Increment level counter
                     counter+=1
-                    print("Level added. Level counter: " + str(counter))
+                    #print("Level added. Level counter: " + str(counter))
                     if counter >= counttoretrieve:
-                        print("Target reached. Returning levels")
+                        #print("Target " + str(counter) + " reached. Returning levels")
                         return level_reps
                 
                 line_counter+=1
@@ -71,7 +70,6 @@ def get_boxoban_leveldict_from_file(file_name, counttoretrieve):
             
     return level_reps
 
-    
 #Def get an dict of LevelWrappers from a folder in form (Key: 'Folder + File Name, Value: LevelWrapper)
 def get_leveldict_from_folder(path, folder_key, game):
     file_names = get_filenames_from_folder(path)
@@ -134,15 +132,6 @@ def get_randnum_levelwrappers(game, maxlvlsevaled):
         level_dict = level_dict|temp_dict
     return level_dict   
 
-#Get a dictionary of dictionarys (BoxobanFilename: Level Dict) from a Boxoban file
-def get_leveldicts_from_boxoban_files(files_dict):
-    files_level_dict = dict()
-    for file in files_dict:
-        temp_dict = get_boxoban_leveldict_from_file(files_dict[file], file)
-        #files_level_dict[file] = temp_dict
-        files_level_dict = files_level_dict|temp_dict
-    return files_level_dict
-
 def get_randnum_levelwrappers_boxoban(folders_dict, maxlvlsevaled):
     levelwrapper_dict = dict()
     counter = 0
@@ -154,11 +143,15 @@ def get_randnum_levelwrappers_boxoban(folders_dict, maxlvlsevaled):
         #Calculate level count to get per file. A random amount between the min required per file and 5 times this amount
         minrequired = math.ceil((folderlevelcount/len(file_list)))
         while counter < folderlevelcount:
-            #print("Counter at: " + str(counter) + " picking from filename list length:  " + str(len(file_list)) + " for folder: " + folder)
             randfile = random.choice(file_list)
-            #Calculate level count to get for this file file. A random amount between the min required per file and 5 times this amount
-            filelevelcount = random.randint(minrequired, (minrequired*5))
-            temp_dict = get_boxoban_leveldict_from_file(randfile, filelevelcount)
+            filelevelcount = None
+            if minrequired < (folderlevelcount-counter):
+                filelevelcount = random.randint(minrequired, (folderlevelcount-counter))
+            #Else, just take the remainder needed from the file
+            else:
+                filelevelcount = (folderlevelcount-counter)
+            #print("Retrieving " + str(filelevelcount) + " levels from file. Target count for folder: " + str(folderlevelcount) + " and curr count: " + str(counter))
+            temp_dict = get_boxoban_leveldict_from_file(randfile, folder, filelevelcount)
             file_list.remove(randfile)
             levelwrapper_dict = levelwrapper_dict|temp_dict
             counter+=filelevelcount
