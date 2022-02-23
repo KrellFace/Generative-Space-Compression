@@ -59,6 +59,20 @@ mario_tiletypes_dict_condensed = {
     "?":int(4),"@":int(4),"Q":int(4),"!":int(4),"1":int(4),"2":int(4),"C":int(4),"U":int(4),"L":int(4),"o":int(4)
 }
 
+#Dictionary for producing compressed Mario char representations to make MCA more directly comperable to the one hot using compression algorithms
+mario_tiletypes_charcompression_dict = {
+    #Empty space, including start and end tiles, and bullet bills
+    "-":"-","M":"-","F":"-","|":"-","*":"-","B":"-","b":"-",
+    #All enemies apart from bulletbills
+    "y":"E","Y":"E","E":"E","g":"E","G":"E","k":"E","K":"E","r":"E",
+    #Solid blocks
+    "X":"X","#":"X","%":"X","D":"X","S":"X",
+    #Pipe blocks
+    "t":"t","T":"t","<":"t",">":"t","[":"t","]":"t",
+    #Reward blocks
+    "?":"?","@":"?","Q":"?","!":"?","1":"?","2":"?","C":"?","U":"?","L":"?","o":"?"
+}
+
 #Dictionary of tiletypes in boxoban, the google deepmind clone of sokoban
 
 boxoban_tiletypes_dict = {

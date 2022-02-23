@@ -7,8 +7,8 @@ class LoderunnerLevel(LevelWrapper):
     enemy_count = None
     linearity = None  
 
-    def __init__(self, name, generator_name, char_rep):
-        super(LoderunnerLevel, self).__init__(name, generator_name, char_rep)
+    def __init__(self, name, generator_name, source_file,char_rep):
+        super(LoderunnerLevel, self).__init__(name, generator_name, source_file,char_rep)
         #self.calc_behavioral_features(char_rep)
 
     def calc_behavioral_features(self, char_rep):

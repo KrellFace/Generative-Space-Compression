@@ -35,11 +35,15 @@ def multigenerator_compression(levelwrapper_dict, game, comp_algo, component_cou
 
     processed_levels = None
     if (comp_algo == CompressionType.MCA):
-        processed_levels = get_compiled_char_representations_from_level_dict(levelwrapper_dict, height, width)
+        processed_levels = get_compiled_char_representations_from_level_dict(levelwrapper_dict, height, width, True, mario_tiletypes_charcompression_dict)
+        #processed_levels = get_compiled_char_representations_from_level_dict(levelwrapper_dict, height, width)
     else:
         processed_levels = get_compiled_onehot_from_leveldict(levelwrapper_dict, tile_dict, height, width)
 
     gen_name_list = processed_levels['generator_name'].tolist()
+    print("MCA Head:")
+    print(processed_levels.head())
+
     compressed_info = get_compression_algo_projection(processed_levels.drop('generator_name', axis=1), comp_algo, component_count=component_count)
     #Readding the name of the generator for each level to the list of all levels and their PCs
     compressed_info[0]['generator_name'] = gen_name_list
@@ -92,7 +96,7 @@ def gen_compression_dist_df_from_leveldict(level_wrapper_dict, game, algolist, b
         
         #tsnepca_distance = calculateDistance(level1.TSNE_PCA1, level1.TSNE_PCA2, level2.TSNE_PCA1, level2.TSNE_PCA2)
         #bc_dist_list.append(abs(level1.empty_space - level2.empty_space))
-        levelpair_row = [level1.name, level1.generator_name, level2.name , level2.generator_name] + algo_vals_list+ algo_dist_list + bc_vals_list + bc_dist_list
+        levelpair_row = [level1.name, level1.generator_name, level1.source_file, level2.name , level2.generator_name, level2.source_file] + algo_vals_list+ algo_dist_list + bc_vals_list + bc_dist_list
         output_dict[pair_counter] = levelpair_row
 
         #Update nearfar dict
@@ -111,10 +115,10 @@ def gen_compression_dist_df_from_leveldict(level_wrapper_dict, game, algolist, b
     algo_colnames = gen_valanddist_colnames_for_algos(algolist)
     bc_colnames = gen_valanddiff_colnames_for_bcs(bclist)
 
-    outputdf = pd.DataFrame.from_dict(output_dict, orient = 'index', columns = (['Level1', 'Level1 Generator',  'Level2', 'Level2 Generator'] + algo_colnames + bc_colnames))
+    outputdf = pd.DataFrame.from_dict(output_dict, orient = 'index', columns = (['Level1', 'Level1 Generator', 'Level1 File',  'Level2', 'Level2 Generator','Level2 File'] + algo_colnames + bc_colnames))
 
-    print("Nearfar exemplar:")
-    print(nearfar_exemplar_dict)
+    #print("Nearfar exemplar:")
+    #print(nearfar_exemplar_dict)
     #Extract closest furthest exemplars
     exemplardict = dict()
     for exemp in nearfar_exemplar_dict:
@@ -125,7 +129,7 @@ def gen_compression_dist_df_from_leveldict(level_wrapper_dict, game, algolist, b
         lvl2outputpath = output_filepath + exemp +  " Level2.png"
         generate_image(game, nearfar_exemplar_dict[exemp][2],lvl1outputpath)
         generate_image(game, nearfar_exemplar_dict[exemp][3],lvl2outputpath)
-    exemplardf = pd.DataFrame.from_dict(exemplardict, orient = 'index', columns = (['ExemplarType', 'Level1', 'Level1 Generator',  'Level2', 'Level2 Generator'] + algo_colnames + bc_colnames))
+    exemplardf = pd.DataFrame.from_dict(exemplardict, orient = 'index', columns = (['ExemplarType', 'Level1', 'Level1 Generator', 'Level1 File',  'Level2', 'Level2 Generator','Level2 File'] + algo_colnames + bc_colnames))
     
     exemplarsfilepath = output_filepath + "Exemplars.csv"
     #exemplarsfilepath.parent.mkdir(parents =True, exist_ok=True)
@@ -191,15 +195,23 @@ def multidomain_multiruns(games, component_count, algolist, tot_lvls_evaled_per_
 
 #Testing multirun wrapper functions
 
+
+
+overall_start_time = datetime.now()
 component_count = 2
-#games = [Game.Boxoban, Game.Mario, Game.Loderunner]
-games = [Game.Boxoban, Game.Mario]
-algolist = [CompressionType.PCA, CompressionType.MCA, CompressionType.SVD, CompressionType.TSNE]
+games = [Game.Mario]
+#games = [Game.Boxoban]
+algolist = [CompressionType.MCA]
 #algolist = [CompressionType.KPCA_SIGMOID, CompressionType.KPCA_POLY, CompressionType.KPCA_RBF, CompressionType.KPCA_COSINE]
 #algolist = [CompressionType.PCA, CompressionType.MCA, CompressionType.SVD, CompressionType.TSNE, CompressionType.KPCA_SIGMOID, CompressionType.KPCA_POLY, CompressionType.KPCA_RBF, CompressionType.KPCA_COSINE]
-tot_lvls_evaled = 100
+tot_lvls_evaled = 10
 runs_per_game = 1
 visualise = True
-fileprefix =  "MarioOutputImages2"
+fileprefix =  "MCA Char Map Testing"
       
 multidomain_multiruns(games, component_count, algolist, tot_lvls_evaled, runs_per_game, fileprefix, visualise)
+
+
+runtime_seconds=  datetime.now () -overall_start_time
+runtime_minutes = runtime_seconds/60
+print("Total Runtime: " + str(runtime_minutes) + " minutes")

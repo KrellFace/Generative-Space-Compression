@@ -46,10 +46,8 @@ def get_boxoban_leveldict_from_file(file_path, folder_name, counttoretrieve):
                 #Check if we are at the end of a level rep. If we are, add it to our dictionary
                 elif ((line_counter+1)%12 == 0):
                     char_matrix = np.reshape(buffer,(boxoban_height, boxoban_width), order = 'C')
-                    #level_reps[int(temp_levelname)] = char_matrix
-                    #level_reps[file_dict_key +':'+ temp_levelname] = LevelWrapper(temp_levelname, file_dict_key, char_matrix)
-                    new_level = BoxobanLevel(temp_levelname, get_n_last_subparts_path(file_path, 2), char_matrix)
-                    #new_level.calc_behavioral_features()
+                    new_level = BoxobanLevel(temp_levelname, folder_name,  get_n_last_subparts_path(file_path, 2), char_matrix)
+                    #new_level = BoxobanLevel(temp_levelname, folder_name, char_matrix)
                     level_reps[folder_name +':'+ file_name+":"+temp_levelname] = new_level
                     temp_levelname = ""
                     buffer.clear()
@@ -81,7 +79,7 @@ def get_leveldict_from_folder(path, folder_key, game):
         level_name = os.path.basename(level)
         char_rep = char_matrix_from_file(level)
         char_rep_window = take_window_from_bottomright(char_rep, window_width, window_height)
-        level_reps[folder_key +':'+ level_name] = generate_levelwrapper_for_game(game, level_name, folder_key, char_rep_window)
+        level_reps[folder_key +':'+ level_name] = generate_levelwrapper_for_game(game, level_name, folder_key, level, char_rep_window)
 
     return level_reps
 
@@ -101,7 +99,7 @@ def get_randnum_levelwrappers_folder(path, folder_key, game, count):
         level_name = os.path.basename(level)
         char_rep = char_matrix_from_file(level)
         char_rep_window = take_window_from_bottomright(char_rep, window_width, window_height)
-        level_reps[folder_key +':'+ level_name] = generate_levelwrapper_for_game(game, level_name, folder_key, char_rep_window)
+        level_reps[folder_key +':'+ level_name] = generate_levelwrapper_for_game(game, level_name, folder_key, level, char_rep_window)
         counter+=1
 
     return level_reps

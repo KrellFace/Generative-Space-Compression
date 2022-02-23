@@ -8,6 +8,9 @@ class LevelWrapper:
     name = ''
     #Parent Generator
     generator_name= ''
+
+    #Source File
+    source_file = ''
     
     #level_type = ''
 
@@ -40,10 +43,11 @@ class LevelWrapper:
     KPCACosineVal1 = None
     KPCACosineVal2 = None 
 
-    def __init__(self, name, generator_name, char_rep):
+    def __init__(self, name, generator_name, source_file, char_rep):
         self.data = []
         self.name = name
         self.generator_name = generator_name
+        self.source_file = source_file
         self.char_rep = char_rep
 
         self.calc_behavioral_features(char_rep)

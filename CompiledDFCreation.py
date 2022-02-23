@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from sqlalchemy import false
 from HelperMethods import *
 
 #Generates a onehot 3D array from a character matrix, using mappings between characters and integers specified in a tile dictionary
@@ -22,12 +23,17 @@ def onehot_from_charmatrix(input_matrix, tile_dict):
 
 #Generate a stacked df of characterrepresentations of levels where each row represents a full level
 #Implemented to facilitate MCA which works on the character representations directly
-def get_compiled_char_representations_from_level_dict(level_dict, window_height, window_width):
+#Optionally takes a dict that compresses the number of chars used
+def get_compiled_char_representations_from_level_dict(level_dict, window_height, window_width, initial_compression = false, comp_dict = None):
     colname_list = generate_2dmatrix_col_names(window_height, window_width)
     alllevels_df_list = []
     for level in level_dict:
         char_rep = level_dict[level].char_rep
         flat_rep = np.ndarray.flatten(char_rep)
+        if (initial_compression):
+            for i in range(0, len(flat_rep)):
+                flat_rep[i] = comp_dict[flat_rep[i]]
+
         level_df = pd.DataFrame(flat_rep.reshape(-1, len(flat_rep)), columns=colname_list, index=[level])
         #level_df.insert(0,"level_name",[level])
         level_df.insert(0,"generator_name",level_dict[level].generator_name)

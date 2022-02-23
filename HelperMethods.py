@@ -102,13 +102,13 @@ def get_folder_and_tiletypedict_for_game(game):
     return output
 
 
-def generate_levelwrapper_for_game(game, level_name, folder_key, char_rep):
+def generate_levelwrapper_for_game(game, level_name, generator_name, source_file, char_rep):
     if (game == Game.Mario):
-        return MarioLevel(level_name, folder_key, char_rep)
+        return MarioLevel(level_name, generator_name,source_file, char_rep)
     elif (game == Game.Boxoban):
-        return BoxobanLevel(level_name, folder_key, char_rep)
+        return BoxobanLevel(level_name, generator_name, source_file,char_rep)
     elif (game == Game.Loderunner):
-        return LoderunnerLevel(level_name, folder_key, char_rep)
+        return LoderunnerLevel(level_name, generator_name, source_file,char_rep)
 
 """
 #This is a hack, should be in a clever datastructure
@@ -239,6 +239,13 @@ def gen_valanddiff_colnames_for_bcs(bclist):
         returnlist.append("2ndLvlVal "+ bc.name) 
     returnlist+=gen_diffnames_for_bcs(bclist)
     return returnlist
+
+def get_single_subpath_part(base_dir: Union[Path, str], n:int) -> str:
+    if n ==0:
+        return Path(base_dir).name
+    for _ in range(n):
+        base_dir = Path(base_dir).parent
+    return getattr(base_dir, "name")
 
 def get_n_last_subparts_path(base_dir: Union[Path, str], n:int) -> Path:
     return Path(*Path(base_dir).parts[-n-1:])
