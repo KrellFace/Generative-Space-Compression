@@ -1,19 +1,20 @@
 from tkinter import X
 from PIL import Image
 import numpy as np
+from pathlib import Path
 
 import LevelWrapper
 from EnumsAndConfig import *
 
-mario_tilemap_path = 'mario_mapsheet.png'
+mario_tilemap_path = 'SpriteSheets/mario_mapsheet.png'
 
-mario_enemytile_path = 'mario_enemysheet.png'
+mario_enemytile_path = 'SpriteSheets/mario_enemysheet.png'
 
 #Taken from https://opengameart.org/content/sokoban-100-tiles
-boxoban_tilemap_path = 'sokoban_spritesheet.png'
+boxoban_tilemap_path = 'SpriteSheets/sokoban_spritesheet.png'
 
 
-pixelSize = 16
+mario_tileSize = 16
 
 
 """
@@ -121,7 +122,7 @@ def generate_image(game, LevelWrapper, filepath):
 
     image_pixel_matrix = None
     if (game == Game.Mario):
-        image_pixel_matrix = np.zeros((lvl_height*pixelSize, lvl_width*pixelSize, 4), dtype = np.uint8)
+        image_pixel_matrix = np.zeros((lvl_height*mario_tileSize, lvl_width*mario_tileSize, 4), dtype = np.uint8)
     elif (game == Game.Boxoban):
         image_pixel_matrix = np.zeros((lvl_height*boxoban_tilesize, lvl_width*boxoban_tilesize, 4), dtype = np.uint8)
 
@@ -143,15 +144,15 @@ def generate_image(game, LevelWrapper, filepath):
                 maploc = boxoban_tiletypes_map[level_charrep[y][x]]
                 image_pixel_matrix[targety[0] : targety[1], targetx[0] : targetx[1]] = tile_map[maploc[2]:maploc[3], maploc[0]: maploc[1]]
             elif (game == Game.Mario):
-                targety = [y*pixelSize, ((y+1) * pixelSize)]
-                targetx = [x*pixelSize, ((x+1) * pixelSize)]
+                targety = [y*mario_tileSize, ((y+1) * mario_tileSize)]
+                targetx = [x*mario_tileSize, ((x+1) * mario_tileSize)]
                 #Logic for adding enemy sprites
                 if level_charrep[y][x] in mario_enemy_list:
                     enemymaploc = mario_enemytypes_map[level_charrep[y][x]]
                     #print("Adding enemy of type: " + level_charrep[y][x] + " with map loc: " + str(enemymaploc)) 
                     #Enemy tiles are 16 x 32, the height of two tiles, so the logic reflects this
-                    maptargetx = [enemymaploc[0]*pixelSize, ((enemymaploc[0]+1) * pixelSize)]
-                    maptargety = [enemymaploc[1]*(pixelSize*2), ((enemymaploc[1]+1) *(pixelSize*2))]
+                    maptargetx = [enemymaploc[0]*mario_tileSize, ((enemymaploc[0]+1) * mario_tileSize)]
+                    maptargety = [enemymaploc[1]*(mario_tileSize*2), ((enemymaploc[1]+1) *(mario_tileSize*2))]
                     """
                     #Do not set pixels which are white (I need to work out how to do this with alpha)
                     for y2 in range(maptargety[0], maptargety[1]):
@@ -159,14 +160,14 @@ def generate_image(game, LevelWrapper, filepath):
                             #Only set pixel if pixel in enemy sprite sheet is not white
                             if not (enemy_map[y2, x2] == [255, 255, 255]):
                                 print("ImgPixelMatrix dimensions : " + str(image_pixel_matrix.shape) + " enemy map shape : " + str(enemy_map.shape))
-                                print("Img Matrix target shape : " + str(image_pixel_matrix[(targety[0]-(pixelSize*2))+y2, targetx[0]+x2].shape) + " enemy target shape: " + str(enemy_map[y2,x2].shape))
-                                image_pixel_matrix[(targety[0]-(pixelSize*2))+y2, targetx[0]+x2] = enemy_map[y2,x2]
+                                print("Img Matrix target shape : " + str(image_pixel_matrix[(targety[0]-(mario_tileSize*2))+y2, targetx[0]+x2].shape) + " enemy target shape: " + str(enemy_map[y2,x2].shape))
+                                image_pixel_matrix[(targety[0]-(mario_tileSize*2))+y2, targetx[0]+x2] = enemy_map[y2,x2]
                     """
-                    image_pixel_matrix[targety[0]-pixelSize : targety[1], targetx[0] : targetx[1]] = enemy_map[maptargety[0]:maptargety[1], maptargetx[0]: maptargetx[1]]
+                    image_pixel_matrix[targety[0]-mario_tileSize : targety[1], targetx[0] : targetx[1]] = enemy_map[maptargety[0]:maptargety[1], maptargetx[0]: maptargetx[1]]
                 else:
                     maploc = mario_tiletypes_map[level_charrep[y][x]]
-                    maptargetx = [maploc[0]*pixelSize, ((maploc[0]+1) * pixelSize)]
-                    maptargety = [maploc[1]*pixelSize, ((maploc[1]+1) * pixelSize)]
+                    maptargetx = [maploc[0]*mario_tileSize, ((maploc[0]+1) * mario_tileSize)]
+                    maptargety = [maploc[1]*mario_tileSize, ((maploc[1]+1) * mario_tileSize)]
                     image_pixel_matrix[targety[0] : targety[1], targetx[0] : targetx[1]] = tile_map[maptargety[0]:maptargety[1], maptargetx[0]: maptargetx[1]]
     if game==Game.Boxoban or game == Game.Mario: 
         img = Image.fromarray(image_pixel_matrix, 'RGBA')

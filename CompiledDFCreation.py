@@ -24,7 +24,7 @@ def onehot_from_charmatrix(input_matrix, tile_dict):
 #Generate a stacked df of characterrepresentations of levels where each row represents a full level
 #Implemented to facilitate MCA which works on the character representations directly
 #Optionally takes a dict that compresses the number of chars used
-def get_compiled_char_representations_from_level_dict(level_dict, window_height, window_width, initial_compression = false, comp_dict = None):
+def get_compiled_char_representations_from_level_dict(level_dict, window_height, window_width, initial_compression = False, comp_dict = None):
     colname_list = generate_2dmatrix_col_names(window_height, window_width)
     alllevels_df_list = []
     for level in level_dict:
