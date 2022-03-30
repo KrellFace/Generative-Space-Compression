@@ -12,17 +12,17 @@ A platform for compressing the generative spaces of PCG systems for a selection 
 3. Apply one of a selection of dimmensionality reduction algorithms to the compressed dataframe and select the two most explanatory new variables for visualisation
 4. Calculate the linear correlation between the pair-wise vector distances for levels in the compressed space, with their difference in behavioral characteristic values
 
-#Installation
+# Installation
 
 - To write
 
-##Requirements
+## Requirements
 
 - To write 
 
-#Usage 
+# Usage 
 
-##Basic Operation
+## Basic Operation
 
 GenSpaceCompression_Main.py is the master file for running experiments.
 
@@ -35,14 +35,14 @@ runs_per_game = Number of runs for each combination of game and algorithm (Each 
 visualise = Boolean for whether you want to generate .png images of the compressed spaces
 fileprefix =  String name for the folder for creating output files
 
-##Currently Implemented Game Domains
+## Currently Implemented Game Domains
 
 The system is currently capable of importing and processing levels from:
 - Super Mario Bros, using the encoding from the Mario AI Framework(https://github.com/amidos2006/Mario-AI-Framework)
 - Loderunner, using the encoding from the VGLC (https://github.com/TheVGLC/TheVGLC)
 - Sokoban/Boxoban, using the encoding used in Deepmind's research (https://github.com/deepmind/boxoban-levels)
 
-##Importing a new game level type
+## Importing a new game level type
 - Add it to the Game class in EnumsAndConfig.py
 - Add the heigh and width of its levels to get_level_heightandwidth_for_game() in EnumsAndConfig.py
 - Add any game specific Behavioral Characteristics to the BCType enum in EnumsAndConfig.py
@@ -52,18 +52,18 @@ The system is currently capable of importing and processing levels from:
 - Add the new game, the tile type dict and folder dict to the get_folder_and_tiletypedict_for_game() method in HelperMethods.py
 - Add game and levelwrapper constructor to generate_levelwrapper_for_game() in helpermethods.py
 
-##Adding a new compression algorithm
+## Adding a new compression algorithm
 
-#Limitations
+# Limitations
 
 - Every level representation has to be the same size, as the majority of compression algorithms expect each observation to have the same number of variables 
 
-#Bugs and Issues to Address
+# Bugs and Issues to Address
 
 - Lots of game attributes and similar are stored in variables and functions when they should be stored in a more sophisticated data structure (See the number of steps required to add a new game type). 
 
 
-#Citation
+# Citation
 
 If you use this platform in your research or writing, please cite it as:
 
