@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
-from sqlalchemy import false
-from src.config.helperMethods import *
+#from sqlalchemy import false
+from src.config.helperMthds import *
 
 #Generates a onehot 3D array from a character matrix, using mappings between characters and integers specified in a tile dictionary
 def onehot_from_cm_tiletypecountspecified(input_matrix, tile_dict, num_tile_type):

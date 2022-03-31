@@ -1,15 +1,15 @@
 
 import itertools as it 
 
-import src.func.levelImporting 
+#import src.func.lvlImport 
 from src.config.enumsAndConfig import *
-import src.func.windowGrabbing
-from src.config.helperMethods import *
-from src.lvlClasses.levelWrapperUpdateMethods import *
-from src.visualisation.plotGeneration import *
-from src.func.compiledDFCreation import *
-from src.func.compressionAndCorrelation import *
-from src.visualisation.levelImageGeneration import *
+#import src.func.windowGrab
+from src.config.helperMthds import *
+from src.lvlClasses.lvlWrapUpdate import *
+from src.visualisation.plotGene import *
+from src.func.dfCreate import *
+from src.func.compAndCorr import *
+from src.visualisation.levelImageGen import *
 
 
 ################################
@@ -179,7 +179,7 @@ def multidomain_multiruns(games, component_count, algolist, tot_lvls_evaled_per_
 
     finallinncorrsdf = pd.DataFrame.from_dict(lincorrdict, orient = 'index', columns = ['Game', 'Run', 'Compression_Dist',  'BCDist', 'Spearman Coeff', 'Spearman P Val'] )
     curr_time = datetime.now().strftime("%m_%d_%H_%M_%S")
-    finaloutputpath = Path(file_prefix+ "/" + "Total Lin Corrs " + file_prefix +'.csv')
+    finaloutputpath = Path(file_prefix+ "/Total Lin Corrs.csv")
     finallinncorrsdf.to_csv(finaloutputpath, index = False)
 
 

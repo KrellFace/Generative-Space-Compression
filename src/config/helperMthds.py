@@ -4,13 +4,13 @@ from typing import Union
 from pathlib import Path
 
 from src.config.enumsAndConfig import *
-from src.lvlClasses.levelWrapper import LevelWrapper
+#from src.lvlClasses.levelWrapper import LevelWrapper
 from src.lvlClasses.boxobanLevel import BoxobanLevel
 from src.lvlClasses.marioLevel import MarioLevel
 from src.lvlClasses.loderunnerLevel import LoderunnerLevel
 #from src.lvlClasses import *
 #import src.lvlClasses
-import src.func.levelImporting as lvlImport
+import src.func.lvlImport as lvlImport
 
 #Generates basic list of column names for 1D one hot grids
 #Each Col name of format: X coord, Y coord and TileType Number

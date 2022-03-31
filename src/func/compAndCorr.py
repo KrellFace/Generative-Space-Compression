@@ -1,5 +1,5 @@
 from src.config.enumsAndConfig import *
-from src.config.helperMethods import *
+from src.config.helperMthds import *
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA

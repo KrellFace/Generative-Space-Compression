@@ -1,2 +1,2 @@
 from src.config.enumsAndConfig import *
-from src.config.helperMethods import *
+from config.helperMthds import *

@@ -113,3 +113,9 @@ dmypy.json
 # Pyre type checker
 .pyre/
 *.csv
+
+#Ignore Output folder
+output/
+
+#Ignore Level Sets to Analyse
+inputLevels/

@@ -9,10 +9,10 @@ import math
 #from src.lvlClasses.LevelWrapper import *
 
 from src.config.enumsAndConfig import *
-import src.config.helperMethods as helper
+import src.config.helperMthds as helper
 from src.lvlClasses.boxobanLevel import BoxobanLevel
-from src.func.windowGrabbing import *
-import src.lvlClasses.levelWrapper
+from src.func.windowGrab import *
+#import src.lvlClasses.levelWrapper
 
 #Get a 2D character matrix from a level file 
 def char_matrix_from_file(path):
