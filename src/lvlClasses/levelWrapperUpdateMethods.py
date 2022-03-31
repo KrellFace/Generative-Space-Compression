@@ -1,5 +1,5 @@
-from EnumsAndConfig import *
-from LevelImporting import *
+from src.config.enumsAndConfig import *
+from src.func.levelImporting import *
 
 
 #Method for updating the attributes of a set of levelwrappers based on compressed data

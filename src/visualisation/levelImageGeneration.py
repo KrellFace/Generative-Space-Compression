@@ -3,15 +3,16 @@ from PIL import Image
 import numpy as np
 from pathlib import Path
 
-import LevelWrapper
-from EnumsAndConfig import *
+from src.config.enumsAndConfig import *
 
-mario_tilemap_path = 'SpriteSheets/mario_mapsheet.png'
+sprites_root = 'assets/'
 
-mario_enemytile_path = 'SpriteSheets/mario_enemysheet.png'
+mario_tilemap_path = sprites_root +'mario_mapsheet.png'
+
+mario_enemytile_path = sprites_root + 'mario_enemysheet.png'
 
 #Taken from https://opengameart.org/content/sokoban-100-tiles
-boxoban_tilemap_path = 'SpriteSheets/sokoban_spritesheet.png'
+boxoban_tilemap_path = sprites_root +'sokoban_spritesheet.png'
 
 
 mario_tileSize = 16
@@ -129,13 +130,13 @@ def generate_image(game, LevelWrapper, filepath):
     tile_map = None
     enemy_map = None
     if (game == Game.Mario):
-        mapimg = Image.open(mario_tilemap_path)
-        tile_map = np.asarray(mapimg)
-        enemyimg = Image.open(mario_enemytile_path)
-        enemy_map = np.asarray(enemyimg)
+        #mapimg = Image.open(mario_tilemap_path)
+        tile_map = np.asarray(Image.open(mario_tilemap_path))
+        #enemyimg = Image.open(mario_enemytile_path)
+        enemy_map = np.asarray(Image.open(mario_enemytile_path))
     elif(game == Game.Boxoban):
-        mapimg = Image.open(boxoban_tilemap_path)
-        tile_map = np.asarray(mapimg)
+        #mapimg = Image.open(boxoban_tilemap_path)
+        tile_map = np.asarray(Image.open(boxoban_tilemap_path))
     for y in range(0, len(level_charrep)):
         for x in range(0,len(level_charrep[0])):
             if (game == Game.Boxoban):
@@ -153,16 +154,6 @@ def generate_image(game, LevelWrapper, filepath):
                     #Enemy tiles are 16 x 32, the height of two tiles, so the logic reflects this
                     maptargetx = [enemymaploc[0]*mario_tileSize, ((enemymaploc[0]+1) * mario_tileSize)]
                     maptargety = [enemymaploc[1]*(mario_tileSize*2), ((enemymaploc[1]+1) *(mario_tileSize*2))]
-                    """
-                    #Do not set pixels which are white (I need to work out how to do this with alpha)
-                    for y2 in range(maptargety[0], maptargety[1]):
-                        for x2 in range(maptargetx[0], maptargetx[1]):
-                            #Only set pixel if pixel in enemy sprite sheet is not white
-                            if not (enemy_map[y2, x2] == [255, 255, 255]):
-                                print("ImgPixelMatrix dimensions : " + str(image_pixel_matrix.shape) + " enemy map shape : " + str(enemy_map.shape))
-                                print("Img Matrix target shape : " + str(image_pixel_matrix[(targety[0]-(mario_tileSize*2))+y2, targetx[0]+x2].shape) + " enemy target shape: " + str(enemy_map[y2,x2].shape))
-                                image_pixel_matrix[(targety[0]-(mario_tileSize*2))+y2, targetx[0]+x2] = enemy_map[y2,x2]
-                    """
                     image_pixel_matrix[targety[0]-mario_tileSize : targety[1], targetx[0] : targetx[1]] = enemy_map[maptargety[0]:maptargety[1], maptargetx[0]: maptargetx[1]]
                 else:
                     maploc = mario_tiletypes_map[level_charrep[y][x]]

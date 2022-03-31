@@ -3,12 +3,14 @@ import math
 from typing import Union
 from pathlib import Path
 
-import LevelImporting
-from EnumsAndConfig import *
-from LevelWrapper import LevelWrapper
-from BoxobanLevel import BoxobanLevel
-from MarioLevel import MarioLevel
-from LoderunnerLevel import LoderunnerLevel
+from src.config.enumsAndConfig import *
+from src.lvlClasses.levelWrapper import LevelWrapper
+from src.lvlClasses.boxobanLevel import BoxobanLevel
+from src.lvlClasses.marioLevel import MarioLevel
+from src.lvlClasses.loderunnerLevel import LoderunnerLevel
+#from src.lvlClasses import *
+#import src.lvlClasses
+import src.func.levelImporting as lvlImport
 
 #Generates basic list of column names for 1D one hot grids
 #Each Col name of format: X coord, Y coord and TileType Number
@@ -81,9 +83,9 @@ def gen_component_labels_for_n(label, n):
 
 def get_randnum_levelwrappers_for_game(game, maxlvlsevaled):
     if game == Game.Boxoban:
-        return LevelImporting.get_randnum_levelwrappers_boxoban(boxoban_folders_dict, maxlvlsevaled)
+        return lvlImport.get_randnum_levelwrappers_boxoban(boxoban_folders_dict, maxlvlsevaled)
     else: 
-        return LevelImporting.get_randnum_levelwrappers(game, maxlvlsevaled)    
+        return lvlImport.get_randnum_levelwrappers(game, maxlvlsevaled)    
 
 
 def get_folder_and_tiletypedict_for_game(game):

@@ -1,19 +1,15 @@
 
 import itertools as it 
 
-from LevelWrapper import LevelWrapper
-from BoxobanLevel import BoxobanLevel
-from MarioLevel import MarioLevel
-from LoderunnerLevel import LoderunnerLevel
-import LevelImporting 
-from EnumsAndConfig import *
-import WindowGrabbing
-from HelperMethods import *
-from LevelWrapperUpdateMethods import *
-from PlotGeneration import *
-from CompiledDFCreation import *
-from CompressionAndCorrelation import *
-from LevelImageGeneration import *
+import src.func.levelImporting 
+from src.config.enumsAndConfig import *
+import src.func.windowGrabbing
+from src.config.helperMethods import *
+from src.lvlClasses.levelWrapperUpdateMethods import *
+from src.visualisation.plotGeneration import *
+from src.func.compiledDFCreation import *
+from src.func.compressionAndCorrelation import *
+from src.visualisation.levelImageGeneration import *
 
 
 ################################

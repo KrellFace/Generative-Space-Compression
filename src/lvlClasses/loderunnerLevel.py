@@ -1,4 +1,5 @@
-from LevelWrapper import LevelWrapper
+#from LevelWrapper import LevelWrapper
+from src.lvlClasses.levelWrapper import LevelWrapper
 
 class LoderunnerLevel(LevelWrapper):
 

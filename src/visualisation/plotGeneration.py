@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import os
-from EnumsAndConfig import *
+import src.config.enumsAndConfig as enumAndConfig
 
 #Scatter plot of compressed level data 
 def plot_compressed_data(toplot, var_exp, compTyp, file_name, gen_names=[]):
@@ -27,7 +27,7 @@ def plot_compressed_data(toplot, var_exp, compTyp, file_name, gen_names=[]):
         plot_col = 0
         for generator in gen_names:
             #Generate a random color for the generator
-            rgb = color_dict[plot_col]
+            rgb = enumAndConfig.color_dict[plot_col]
             plot_col+=1 
             #Limit our targets to just current generator
             to_keep = toplot['generator_name'] == generator
