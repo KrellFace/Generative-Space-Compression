@@ -2,8 +2,7 @@
 
 A platform for compressing the generative spaces of PCG systems for a selection of 2D tile-based games and validating the compressed spaces against Behavioral Characteristics of the input levels.
 
-![MarioMCAFullVisual](https://user-images.githubusercontent.com/16071406/160801083-54abec0b-572e-4f55-89f7-515e24607794.png)
-
+![MarioMCAFullVisualCropped](https://user-images.githubusercontent.com/16071406/161237863-cb730510-34e8-47de-a30b-f0e2f47863ef.png)
 
 # Workflow Steps
 
