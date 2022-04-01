@@ -15,9 +15,10 @@ A platform for compressing the generative spaces of PCG systems for a selection 
 
 - To write
 
-## Requirements
+# Requirements
 
-- To write 
+- Python 3.8
+- VSCode
 
 # Usage 
 
@@ -46,9 +47,10 @@ The system is currently capable of importing and processing levels from:
 
 - Every level representation has to be the same size, as the majority of compression algorithms expect each observation to have the same number of variables 
 
-# Bugs and Issues to Address
+# Issues to Address
 
-- Lots of game attributes and similar are stored in variables and functions when they should be stored in a more sophisticated data structure (See the number of steps required to add a new game type). 
+- Storage of game attributes and similar in variables and functions in EnumsAndConfig.py and HelperMthds.py modules. 
+- Easier workflow for adding new games and compression algorithms
 
 
 # Citation
