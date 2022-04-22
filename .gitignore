@@ -115,7 +115,10 @@ dmypy.json
 *.csv
 
 #Ignore Output folder
-output/
+output/*
+!output/README.md
 
-#Ignore Level Sets to Analyse
-inputLevels/
+
+inputLevels/Mario-AI-Framework/
+inputLevels/VGLC/TheVGLC/
+inputLevels/boxoban-levels/
