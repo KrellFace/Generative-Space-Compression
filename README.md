@@ -13,7 +13,7 @@ A platform for compressing the generative spaces of PCG systems for a selection 
 
 # Installation
 
-- To write
+To install and repeat the experiments you simply need to clone this repository, and then clone the respositories for the game domains of interest (implemented options listed below) into the inputLevels folder. Then after confirming that the folder structure for each game matches what is specified for the root/path variables hard coded in src/config/enumAndConfig then you should be ready to configure the variables in GenSpaceCompression_Main.py and run the experiment.
 
 # Requirements
 
