@@ -20,6 +20,14 @@ To install and repeat the experiments you simply need to clone this repository, 
 - Python 3.8
 - VSCode
 
+##Python Packages
+-scikit-learn (https://scikit-learn.org/stable/) 
+-scipy (https://scipy.org/)
+-prince (https://pypi.org/project/prince/)
+-pandas (https://pandas.pydata.org/)
+-numpy (https://numpy.org/)
+
+
 # Usage 
 
 ## Basic Operation
