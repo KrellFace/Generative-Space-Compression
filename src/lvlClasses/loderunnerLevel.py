@@ -1,4 +1,3 @@
-#from LevelWrapper import LevelWrapper
 from src.lvlClasses.levelWrapper import LevelWrapper
 
 class LoderunnerLevel(LevelWrapper):
@@ -10,7 +9,6 @@ class LoderunnerLevel(LevelWrapper):
 
     def __init__(self, name, generator_name, source_file,char_rep):
         super(LoderunnerLevel, self).__init__(name, generator_name, source_file,char_rep)
-        #self.calc_behavioral_features(char_rep)
 
     def calc_behavioral_features(self, char_rep):
         temp_emptyspace = 0

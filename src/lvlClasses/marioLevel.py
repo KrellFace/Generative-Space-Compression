@@ -1,4 +1,3 @@
-#from LevelWrapper import LevelWrapper
 from src.lvlClasses.levelWrapper import LevelWrapper
 
 class MarioLevel(LevelWrapper):

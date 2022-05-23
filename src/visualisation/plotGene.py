@@ -1,9 +1,10 @@
 import matplotlib.pyplot as plt
 import os
 import src.config.enumsAndConfig as enumAndConfig
+import src.config.helperMthds as helper
 
 #Scatter plot of compressed level data 
-def plot_compressed_data(toplot, var_exp, compTyp, file_name, gen_names=[]):
+def plot_compressed_data(toplot, var_exp, compTyp, file_name, gen_names=[], label_extremes = False):
 
     col1name = compTyp.name + ' 1'
     col2name = compTyp.name + ' 2'
@@ -42,13 +43,12 @@ def plot_compressed_data(toplot, var_exp, compTyp, file_name, gen_names=[]):
                     , toplot[0].loc[:, col2name]
                     , s = 20)       
     
-    """
-    coord_dict = return_coord_dict_fromcoord_lists(toplot.index, toplot[col1name].tolist(), toplot[col2name].tolist())
-    extreme_coords_for_labeling = get_extreme_coords(coord_dict, 10)
+    if(label_extremes):
+        coord_dict = helper.return_coord_dict_fromcoord_lists(toplot.index, toplot[col1name].tolist(), toplot[col2name].tolist())
+        extreme_coords_for_labeling = helper.get_extreme_coords(coord_dict, 10)
 
-    for key in extreme_coords_for_labeling:
-        ax.annotate(extreme_coords_for_labeling[key][0], (extreme_coords_for_labeling[key][1],extreme_coords_for_labeling[key][2] ))
-    """
+        for key in extreme_coords_for_labeling:
+            ax.annotate(extreme_coords_for_labeling[key][0], (extreme_coords_for_labeling[key][1],extreme_coords_for_labeling[key][2] ))
 
     ax.legend(gen_names)
     ax.grid()
@@ -67,7 +67,6 @@ def simple_scatter(frame, col1, col2, title):
 
     ax.scatter(frame.loc[:, col1]
                 , frame.loc[:, col2]
-                #, c = color
                 , s = 5)       
     ax.grid()
     plt.show()

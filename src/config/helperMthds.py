@@ -4,12 +4,9 @@ from typing import Union
 from pathlib import Path
 
 from src.config.enumsAndConfig import *
-#from src.lvlClasses.levelWrapper import LevelWrapper
 from src.lvlClasses.boxobanLevel import BoxobanLevel
 from src.lvlClasses.marioLevel import MarioLevel
 from src.lvlClasses.loderunnerLevel import LoderunnerLevel
-#from src.lvlClasses import *
-#import src.lvlClasses
 import src.func.lvlImport as lvlImport
 
 #Generates basic list of column names for 1D one hot grids
@@ -111,27 +108,6 @@ def generate_levelwrapper_for_game(game, level_name, generator_name, source_file
         return BoxobanLevel(level_name, generator_name, source_file,char_rep)
     elif (game == Game.Loderunner):
         return LoderunnerLevel(level_name, generator_name, source_file,char_rep)
-
-"""
-#This is a hack, should be in a clever datastructure
-def get_feature_names_for_compression_type(algotype):
-    if (algotype == CompressionType.PCA):
-        return ['PC1Val', 'PC2Val']
-    elif (algotype == CompressionType.MCA):
-        return ['MCA1Val', 'MCA2Val']
-    elif (algotype == CompressionType.TSNE):
-        return ['TSNEVal1', 'TSNEVal2']
-    elif (algotype == CompressionType.SVD):
-        return ['SVD1Val', 'SVD2Val']    
-    elif (algotype == CompressionType.KPCA_POLY):
-        return ['KPCAPolyVal1', 'KPCAPolyVal2']
-    elif (algotype == CompressionType.KPCA_COSINE):
-        return ['KPCACosineVal1', 'KPCACosineVal2']
-    elif (algotype == CompressionType.KPCA_RBF):
-        return ['KPCARbfVal1', 'KPCARbfVal2']
-    elif (algotype == CompressionType.KPCA_SIGMOID):
-        return ['KPCASigmoidVal1', 'KPCASigmoidVal2']
-"""
 
 #Get the location values in compressed space for a pair of levels for a specified algorithm
 def get_compvals_for_algolist_for_levelpair(level1, level2, algolist):

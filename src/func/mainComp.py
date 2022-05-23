@@ -1,9 +1,7 @@
 
 import itertools as it 
 
-#import src.func.lvlImport 
 from src.config.enumsAndConfig import *
-#import src.func.windowGrab
 from src.config.helperMthds import *
 from src.lvlClasses.lvlWrapUpdate import *
 from src.visualisation.plotGene import *
@@ -80,8 +78,6 @@ def gen_compression_dist_df_from_leveldict(level_wrapper_dict, game, algolist, b
         bc_vals_list = get_bcvals_for_bclist_for_levelpair(level1, level2, bclist)
         bc_dist_list = get_differences_for_bclist_for_levelpair(level1, level2, bclist)
         
-        #tsnepca_distance = calculateDistance(level1.TSNE_PCA1, level1.TSNE_PCA2, level2.TSNE_PCA1, level2.TSNE_PCA2)
-        #bc_dist_list.append(abs(level1.empty_space - level2.empty_space))
         levelpair_row = [level1.name, level1.generator_name, level1.source_file, level2.name , level2.generator_name, level2.source_file] + algo_vals_list+ algo_dist_list + bc_vals_list + bc_dist_list
         output_dict[pair_counter] = levelpair_row
 
@@ -103,8 +99,6 @@ def gen_compression_dist_df_from_leveldict(level_wrapper_dict, game, algolist, b
 
     outputdf = pd.DataFrame.from_dict(output_dict, orient = 'index', columns = (['Level1', 'Level1 Generator', 'Level1 File',  'Level2', 'Level2 Generator','Level2 File'] + algo_colnames + bc_colnames))
 
-    #print("Nearfar exemplar:")
-    #print(nearfar_exemplar_dict)
     #Extract closest furthest exemplars
     exemplardict = dict()
     for exemp in nearfar_exemplar_dict:
@@ -118,20 +112,15 @@ def gen_compression_dist_df_from_leveldict(level_wrapper_dict, game, algolist, b
     exemplardf = pd.DataFrame.from_dict(exemplardict, orient = 'index', columns = (['ExemplarType', 'Level1', 'Level1 Generator', 'Level1 File',  'Level2', 'Level2 Generator','Level2 File'] + algo_colnames + bc_colnames))
     
     exemplarsfilepath = output_filepath + "Exemplars.csv"
-    #exemplarsfilepath.parent.mkdir(parents =True, exist_ok=True)
     exemplardf.to_csv(exemplarsfilepath, index= False )
-
-    #print("Total runtime: " + str(datetime.now () -start_time) + " seconds")
 
     curr_time = datetime.now().strftime("%m_%d_%H_%M_%S")
     analytics_filepath= os.path.join(output_filepath + "Analytics.csv")
-    #outputdf.to_csv(analytics_filepath, index= False )
     return outputdf
 
 #Generates a feature distance dataframe for all level pairs in a folder
 def generate_analytics_for_all_level_pairs(game, maxlvlsevaled, component_count, output_filepath, algolist, bclist, visualise = False, file_root = ""):
     
-    #complete_level_dict = get_and_update_levels_for_algo_list(game, component_count, algolist, visualise)
     complete_level_dict = get_and_update_X_levels_for_algo_list(game, component_count, algolist, maxlvlsevaled, visualise, file_root)
     return gen_compression_dist_df_from_leveldict(complete_level_dict,game, algolist,bclist, output_filepath)
 
@@ -148,9 +137,6 @@ def multidomain_multiruns(games, component_count, algolist, tot_lvls_evaled_per_
         runcount = 0
         while runcount < runs_per_game:
             runpath = file_prefix + "/" +game.name +"/Run " + str(runcount+1) + "/"
-            #analyticsfilepath = Path(runpath + game.name + "TotalAnalytics.csv")
-            #analyticsfilepath.parent.mkdir(parents =True, exist_ok=True)
-            #exemplarsfilepath = Path(runpath + game.name + "Exemplars.csv")
             output_filepath = runpath + game.name
             #Create parent folder
             Path(output_filepath).parent.mkdir(parents =True, exist_ok=True)

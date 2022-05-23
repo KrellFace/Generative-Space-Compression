@@ -1,4 +1,3 @@
-
 import numpy as np
 
 #Generic method for taking windows from matrices 

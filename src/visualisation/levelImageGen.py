@@ -1,7 +1,6 @@
 from tkinter import X
 from PIL import Image
 import numpy as np
-#from pathlib import Path
 
 from src.config.enumsAndConfig import *
 
@@ -16,22 +15,6 @@ boxoban_tilemap_path = sprites_root +'sokoban_spritesheet.png'
 
 
 mario_tileSize = 16
-
-
-"""
-boxoban_tilecolors_dict = {
-    #Grey walls
-    "#":[125, 125, 124, 1], 
-    #Blue Player Character
-    "@":[0, 162, 255, 1],
-    #Brown boxes 
-    "$":[204, 129, 0, 1], 
-    #Golden goals
-    ".":[255, 218, 10, 1], 
-    #Pale grey empty space
-    " ":[242, 242, 240, 1]
-}
-"""
 
 #Locations of tiles in form x1, x2, y1, y2
 boxoban_tilesize = 60
@@ -130,12 +113,9 @@ def generate_image(game, LevelWrapper, filepath):
     tile_map = None
     enemy_map = None
     if (game == Game.Mario):
-        #mapimg = Image.open(mario_tilemap_path)
         tile_map = np.asarray(Image.open(mario_tilemap_path))
-        #enemyimg = Image.open(mario_enemytile_path)
         enemy_map = np.asarray(Image.open(mario_enemytile_path))
     elif(game == Game.Boxoban):
-        #mapimg = Image.open(boxoban_tilemap_path)
         tile_map = np.asarray(Image.open(boxoban_tilemap_path))
     for y in range(0, len(level_charrep)):
         for x in range(0,len(level_charrep[0])):

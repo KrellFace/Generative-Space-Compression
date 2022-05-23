@@ -15,9 +15,6 @@ class BoxobanLevel(LevelWrapper):
         temp_boxcount = 0
         temp_emptyspace = 0
         temp_contiguity = 0
-        #print("Char rep dimensions: " )
-        #print(len(char_rep))
-        #print(len(char_rep[0]))
         for x in range(0, len(char_rep)):
             for y in range(0,len(char_rep[0])):
                 if char_rep[x][y]=='$':
@@ -43,7 +40,5 @@ class BoxobanLevel(LevelWrapper):
         self.box_count = temp_boxcount
         self.empty_space = temp_emptyspace
         self.contiguity = temp_contiguity
-
-        #print('Level: ' + self.name + " box count: " + str(self.box_count) + ' & empty space: ' + str(self.empty_space))
 
 

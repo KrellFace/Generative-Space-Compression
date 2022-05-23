@@ -2,17 +2,11 @@ import os
 import random
 import numpy as np
 import math
-#from src.config.EnumsAndConfig import *
-#from src.config.HelperMethods import *
-#from src.lvlClasses.BoxobanLevel import *
-#from src.func.WindowGrabbing import *
-#from src.lvlClasses.LevelWrapper import *
 
 from src.config.enumsAndConfig import *
 import src.config.helperMthds as helper
 from src.lvlClasses.boxobanLevel import BoxobanLevel
 from src.func.windowGrab import *
-#import src.lvlClasses.levelWrapper
 
 #Get a 2D character matrix from a level file 
 def char_matrix_from_file(path):

@@ -83,11 +83,8 @@ boxoban_tiletypes_dict = {
 }
 
 #Level file locations
-#mario_root = 'C:/Users/owith/Documents/External Repositories/Mario-AI-Framework/levels/'
 mario_root = 'inputLevels/Mario-AI-Framework/levels/'
-#loderunnder_path = "C:/Users/owith/Documents/External Repositories/VGLC/TheVGLC/Lode Runner/Processed/"
 loderunnder_path = 'inputLevels/VGLC/TheVGLC/Lode Runner/Processed/'
-#boxoban_root = "C:/Users/owith/Documents/External Repositories/boxoban-levels/"
 boxoban_root = 'inputLevels/boxoban-levels/'
 
 #Dictionary of Mario generator names and respective folders 

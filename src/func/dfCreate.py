@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-#from sqlalchemy import false
 from src.config.helperMthds import *
 
 #Generates a onehot 3D array from a character matrix, using mappings between characters and integers specified in a tile dictionary
@@ -51,8 +50,6 @@ def get_compiled_onehot_from_leveldict(level_dict, tile_dict, height, width):
 
         flat_rep = np.ndarray.flatten(onehot_rep)
         level_df = pd.DataFrame(flat_rep.reshape(-1, len(flat_rep)), columns=colname_list, index=[key])
-        #level_df.insert(0,"level_name",[key])
-        #level_df.set_index(key)
         level_df.insert(0,"generator_name",level_dict[key].generator_name)
         alllevels_df_list.append(level_df)
     return pd.concat(alllevels_df_list, ignore_index=False)

@@ -1,13 +1,9 @@
 from src.config.enumsAndConfig import *
 from src.config.helperMthds import *
 
+from sklearn.decomposition import  PCA, TruncatedSVD, KernelPCA, SparsePCA
 from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
-from sklearn.decomposition import SparsePCA
-from sklearn.decomposition import TruncatedSVD
-from sklearn.decomposition import KernelPCA
 from sklearn.manifold import TSNE
-from scipy.stats import pearsonr
 from scipy.stats import spearmanr
 import prince
 import numpy as np
