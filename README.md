@@ -21,11 +21,11 @@ To install and repeat the experiments you simply need to clone this repository, 
 - VSCode
 
 ## Python Packages
--scikit-learn (https://scikit-learn.org/stable/) 
--scipy (https://scipy.org/)
--prince (https://pypi.org/project/prince/)
--pandas (https://pandas.pydata.org/)
--numpy (https://numpy.org/)
+- scikit-learn (https://scikit-learn.org/stable/) 
+- scipy (https://scipy.org/)
+- prince (https://pypi.org/project/prince/)
+- pandas (https://pandas.pydata.org/)
+- numpy (https://numpy.org/)
 
 
 # Usage 
