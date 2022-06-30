@@ -160,31 +160,39 @@ def get_distances_for_algolist_for_levelpair(level1, level2, algolist):
 def get_bcvals_for_bclist_for_levelpair(level1, level2, bclist):
     vals = []
     for bc in bclist:
-        if (bc == BCType.EmptySpace):
-            vals+=[level1.empty_space, level2.empty_space]
-        elif (bc == BCType.EnemyCount):
-            vals+=[level1.enemy_count, level2.enemy_count]
-        elif (bc == BCType.Linearity):
-            vals+=[level1.linearity, level2.linearity]
-        elif (bc == BCType.Contiguity):
-            vals+=[level1.contiguity, level2.contiguity]
-        else:
-            print("BC Type not recognised")
+        #if (bc == BCType.EmptySpace):
+        #    vals+=[level1.empty_space, level2.empty_space]
+        #elif (bc == BCType.EnemyCount):
+        #    vals+=[level1.enemy_count, level2.enemy_count]
+        #elif (bc == BCType.Linearity):
+       #     vals+=[level1.linearity, level2.linearity]
+        #elif (bc == BCType.Contiguity):
+        #    vals+=[level1.contiguity, level2.contiguity]
+        #elif (bc == BCType.Density):
+        #    vals+=[level1.density, level2.density]
+        #else:
+        #    print("BC Type not recognised")
+        vals+=[level1.bc_vals[bc], level2.bc_vals[bc]]
+
     return vals
 
 def get_differences_for_bclist_for_levelpair(level1, level2, bclist):
     differences = []
     for bc in bclist:
-        if (bc == BCType.EmptySpace):
-            differences.append(abs(level1.empty_space - level2.empty_space))
-        elif (bc == BCType.EnemyCount):
-            differences.append(abs(level1.enemy_count - level2.enemy_count))
-        elif (bc == BCType.Linearity):
-            differences.append(abs(level1.linearity - level2.linearity))
-        elif (bc == BCType.Contiguity):
-            differences.append(abs(level1.contiguity - level2.contiguity))
-        else:
-            print("BC type not recognised")
+        #if (bc == BCType.EmptySpace):
+        #    differences.append(abs(level1.empty_space - level2.empty_space))
+        #elif (bc == BCType.EnemyCount):
+        #    differences.append(abs(level1.enemy_count - level2.enemy_count))
+        #elif (bc == BCType.Linearity):
+        #    differences.append(abs(level1.linearity - level2.linearity))
+        #elif (bc == BCType.Contiguity):
+        #    differences.append(abs(level1.contiguity - level2.contiguity))
+        #elif (bc == BCType.Density):
+        #    differences.append(abs(level1.density - level2.density))
+        #else:
+        #    print("BC type not recognised")
+        differences.append(abs(level1.bc_vals[bc] - level2.bc_vals[bc]))
+        #print("Difference for level pair: with BC1: " + str(level1.bc_vals[bc]) + ' and BC2: ' + str(level2.bc_vals[bc]))
     return differences
 
 def gen_distnames_for_algos(algolist):

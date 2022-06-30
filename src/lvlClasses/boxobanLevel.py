@@ -1,11 +1,13 @@
 from src.lvlClasses.levelWrapper import LevelWrapper
+from src.config.enumsAndConfig import BCType
 
 class BoxobanLevel(LevelWrapper):
 
     #BC Storage
-    box_count = None 
-    empty_space = None
-    contiguity = None
+    #box_count = None 
+    #empty_space = None
+    #contiguity = None
+
 
     def __init__(self, name, generator_name, source_file, char_rep):
         super(BoxobanLevel, self).__init__(name, generator_name,source_file,char_rep)
@@ -37,8 +39,10 @@ class BoxobanLevel(LevelWrapper):
                     if char_rep[y+1][x]  == '#':
                         temp_contiguity+=1                
             
-        self.box_count = temp_boxcount
-        self.empty_space = temp_emptyspace
-        self.contiguity = temp_contiguity
+        #self.box_count = temp_boxcount
+        #self.empty_space = temp_emptyspace
+        #self.contiguity = temp_contiguity
+        self.bc_vals[BCType.EmptySpace] =  temp_emptyspace
+        self.bc_vals[BCType.Contiguity] =  temp_contiguity
 
 

@@ -21,6 +21,16 @@ def get_level_heightandwidth_for_game(game):
     elif (game == Game.Loderunner):
         return [loderunner_height, loderunner_width]
 
+#Define which BCs we calculate for each game 
+def get_BCs_for_game(game):
+    if (game == Game.Mario):
+        return [BCType.EmptySpace, BCType.EnemyCount, BCType.Linearity, BCType.Density]
+    elif (game == Game.Boxoban):
+        return [BCType.EmptySpace, BCType.Contiguity]
+    elif (game == Game.Loderunner):
+        return [BCType.EmptySpace, BCType.EnemyCount, BCType.Linearity, BCType.Density]
+
+
 class CompressionType(Enum):
     PCA = 1,
     MCA = 2,
@@ -36,7 +46,8 @@ class BCType(Enum):
     EmptySpace = 1,
     EnemyCount = 2,
     Linearity = 3,
-    Contiguity = 4
+    Contiguity = 4,
+    Density = 5
 
 lr_tiletypes_dict = {
     "CountOfNumericTileTypes" : int(8),

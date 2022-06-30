@@ -8,6 +8,7 @@ def update_levelwrapper_datacomp_features(level_dict, compdf, compression_type):
         for level in level_dict:
             level_dict[level].PC1Val = compdf.loc[level][compression_type.name+' 1']
             level_dict[level].PC2Val = compdf.loc[level][compression_type.name+' 2']
+            #print("While updating levelwrappers. Density is " + str(level_dict[level].bc_vals[BCType.Density]))
     elif (compression_type == CompressionType.MCA):
         for level in level_dict:
             level_dict[level].MCA1Val = compdf.loc[level][compression_type.name+' 1']

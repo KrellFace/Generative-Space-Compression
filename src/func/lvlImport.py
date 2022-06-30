@@ -118,7 +118,7 @@ def get_leveldicts_from_folder_set(game):
     for folder in folder_dict:
         #Get all one for for specific folder
         temp_dict = get_leveldict_from_folder(folder_dict[folder], folder, game)
-        level_dict = level_dict|temp_dict
+        level_dict = {**level_dict, **temp_dict}
     return level_dict
 
 def get_randnum_levelwrappers(game, maxlvlsevaled):
@@ -131,11 +131,16 @@ def get_randnum_levelwrappers(game, maxlvlsevaled):
     for folder in folder_dict:
         #Get all one for for specific folder
         temp_dict = get_randnum_levelwrappers_folder(folder_dict[folder], folder, game, count)
-        level_dict = level_dict|temp_dict
+        level_dict = {**level_dict, **temp_dict}
+
+    #print("At end of get_randfum_levelwrappers:")
+    #for key in level_dict:
+    #    print("Density: " + str(level_dict[key].bc_vals[BCType.Density]))
+    
     return level_dict   
 
 def get_randnum_levelwrappers_boxoban(folders_dict, maxlvlsevaled):
-    levelwrapper_dict = dict()
+    level_dict = dict()
     counter = 0
     #Calculate count of levels to get per folder
     folderlevelcount = math.floor((maxlvlsevaled/len(folders_dict)))
@@ -155,7 +160,7 @@ def get_randnum_levelwrappers_boxoban(folders_dict, maxlvlsevaled):
             #print("Retrieving " + str(filelevelcount) + " levels from file. Target count for folder: " + str(folderlevelcount) + " and curr count: " + str(counter))
             temp_dict = get_boxoban_leveldict_from_file(randfile, folder, filelevelcount)
             file_list.remove(randfile)
-            levelwrapper_dict = levelwrapper_dict|temp_dict
+            level_dict = {**level_dict, **temp_dict}
             counter+=filelevelcount
         counter = 0
-    return levelwrapper_dict
+    return level_dict

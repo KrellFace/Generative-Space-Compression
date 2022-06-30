@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from pickle import NONE
+from src.config.enumsAndConfig import BCType
 
 #Wrapper class for game levels. Containing all relevant information about them including their representations and attributes
 class LevelWrapper:
@@ -19,6 +20,11 @@ class LevelWrapper:
     
     onehot_rep =  None
 
+    #Stores level behavioural characteristics
+
+    bc_vals = None
+
+    #Stores the algorithm specific locations in compressed 2D space
     PC1Val = None
     PC2Val = None 
 
@@ -49,7 +55,8 @@ class LevelWrapper:
         self.generator_name = generator_name
         self.source_file = source_file
         self.char_rep = char_rep
-
+        self.bc_vals = {}
+        
         self.calc_behavioral_features(char_rep)
     
     def print_self(self):

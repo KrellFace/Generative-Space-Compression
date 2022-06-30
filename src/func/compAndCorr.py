@@ -9,6 +9,7 @@ import prince
 import numpy as np
 import pandas as pd
 from datetime import datetime
+from os.path import exists
 
 
 #Run compression algorithm on representations of game levels and return the reprojected data 
@@ -88,7 +89,8 @@ def get_linear_correlations_from_df(df, algolist, bclist, filepath):
     bc_diff_list = gen_diffnames_for_bcs(bclist)
 
     curr_time = datetime.now().strftime("%m_%d_%H_%M_%S")
-    outputfile = open(filepath, "x")
+    outputfile = open(filepath, "a")
+    
 
     output = dict()
 

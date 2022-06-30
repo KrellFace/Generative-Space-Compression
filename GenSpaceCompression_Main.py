@@ -4,12 +4,12 @@ from src.config.enumsAndConfig import *
 
 
 #Parameters to set
-games = [Game.Boxoban, Game.Mario, Game.Loderunner]
+games = [Game.Loderunner, Game.Mario, Game.Boxoban]
 algolist = [CompressionType.PCA, CompressionType.SVD, CompressionType.MCA]
 tot_lvls_evaled = 100
 runs_per_game = 1
 visualise = True
-fileprefix =  "TidyTest"
+fileprefix =  "BCStorage23Final"
 
 overall_start_time = datetime.now()
 component_count = 2

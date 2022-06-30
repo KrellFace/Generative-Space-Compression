@@ -50,7 +50,7 @@ def get_and_update_X_levels_for_algo_list(game, component_count, algolist, maxlv
         start_time = datetime.now()
         algo_output = multigenerator_compression(level_wrapper_dict, game, algo, component_count, visualise, file_root)
         level_wrapper_dict = update_levelwrapper_datacomp_features(level_wrapper_dict, algo_output, algo)
-        print("Algo "+ algo.name + "runtime: " + str(datetime.now () -start_time) + " seconds")
+        print("Algo "+ algo.name + " compression runtime: " + str(datetime.now () -start_time) + " seconds")
 
     return level_wrapper_dict
 
@@ -77,6 +77,8 @@ def gen_compression_dist_df_from_leveldict(level_wrapper_dict, game, algolist, b
         algo_dist_list = get_distances_for_algolist_for_levelpair(level1, level2,algolist)
         bc_vals_list = get_bcvals_for_bclist_for_levelpair(level1, level2, bclist)
         bc_dist_list = get_differences_for_bclist_for_levelpair(level1, level2, bclist)
+
+       # print("BC Vals: " + str(bc_vals_list))
         
         levelpair_row = [level1.name, level1.generator_name, level1.source_file, level2.name , level2.generator_name, level2.source_file] + algo_vals_list+ algo_dist_list + bc_vals_list + bc_dist_list
         output_dict[pair_counter] = levelpair_row
@@ -130,10 +132,12 @@ def multidomain_multiruns(games, component_count, algolist, tot_lvls_evaled_per_
     lincorrdict = dict()
     start_time = datetime.now()
     for game in games:
-        if (game == Game.Boxoban):
-            bclist = [BCType.EmptySpace, BCType.Contiguity]
-        else:
-            bclist = [BCType.EmptySpace, BCType.EnemyCount, BCType.Linearity]
+
+        #if (game == Game.Boxoban):
+        #    bclist = [BCType.EmptySpace, BCType.Contiguity]
+        #else:
+        #    bclist = [BCType.EmptySpace, BCType.EnemyCount, BCType.Linearity]
+        bclist = get_BCs_for_game(game)
         runcount = 0
         while runcount < runs_per_game:
             runpath = file_prefix + "/" +game.name +"/Run " + str(runcount+1) + "/"
@@ -147,6 +151,7 @@ def multidomain_multiruns(games, component_count, algolist, tot_lvls_evaled_per_
                 output = generate_analytics_for_all_level_pairs(game, 150, component_count, output_filepath, algolist, bclist, visualise,images_root)
             else:
                 output = generate_analytics_for_all_level_pairs(game, tot_lvls_evaled_per_run, component_count, output_filepath, algolist, bclist, visualise,images_root)
+                
             linncorrs = list()
             linncorrs.append(game.name)
             lincorrsfilepath = Path(runpath + game.name + " Run " + str(runcount+1) + ".txt")
