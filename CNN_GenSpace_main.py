@@ -1,3 +1,4 @@
+from typing import List
 from src.func.mainComp import *
 from src.config.enumsAndConfig import *
 from src.config.helperMthds import *
@@ -76,12 +77,19 @@ def get_model(in_shape, bc_count):
 #FUNCTIONALITY FOR GENERATING GENERATIVE SPACE VISUALISATIONS FROM LEVELS+CNN
 ########################################################################################
 
-def generate_visualisation_from_cnn(level_wrappers, model, game, comp_algo, save_intermediate_output = False, intermed_output_path = '', save_comp_weights = False, comp_weights_path = ''):
+def generate_visualisation_from_cnn(level_wrappers, model, game, comp_algo, save_intermediate_output = False, intermed_output_path = '', save_comp_weights = False, comp_weights_path = '', save_visual = False, visual_path = ''):
     #First we need to create our intermediate layer model
     compiled_level_weights = get_penultimate_layer_levelweights(level_wrappers,model, save_intermediate_output,  intermed_output_path)
 
-    
-    data = get_compression_algo_projection(compiled_level_weights, comp_algo)
+    gen_name_list = compiled_level_weights['generator_name'].tolist()
+    data = get_compression_algo_projection(compiled_level_weights.drop('generator_name', axis=1), comp_algo)
+    data[0]['generator_name'] = gen_name_list
+
+    #print("Comp data head:")
+    #print(data[0].head)
+
+    folder_dict =  get_folder_and_tiletypedict_for_game(game)['Folder_Dict']
+    plot_compressed_data(data[0], data[1], comp_algo,visual_path, list(folder_dict.keys()))
 
     compressed_weights = data[0]
 
@@ -104,6 +112,7 @@ def get_penultimate_layer_levelweights(level_wrappers, model, save_output = Fals
         #print(intermediate_output.shape)
         flat = np.ndarray.flatten(level_weights)
         level_weights_df = pd.DataFrame(flat.reshape(-1, len(flat)), columns=range(0, 64), index=[level_key])
+        level_weights_df.insert(0,"generator_name",level_wrappers[level_key].generator_name)
         total_intermediate_outputs.append(level_weights_df)
     
     compiled = pd.concat(total_intermediate_outputs, ignore_index=False)
@@ -121,7 +130,7 @@ def get_penultimate_layer_levelweights(level_wrappers, model, save_output = Fals
 #FUNCTIONALITY FOR EVALUATING A 2D PROJECTION OF LEVELS, BASED ON CORRELATION BETWEEN VECTOR DISTANCES AND A SPECIFIED BC
 ############################################################################################
 
-def calculate_linncorr_of_projection_for_bc(level_dict, correlation_data, bc, comp_type, base_file_path, linn_corrs_path = 'LinearCorrelations.txt', ):
+def calculate_linncorr_of_projection_for_bc(level_dict, correlation_data, bc, comp_type, base_file_path, linn_corrs_path = 'CNNComp_LinearCorrelations.txt', ):
     update_levelwrapper_datacomp_features(level_dict, correlation_data, comp_type)
 
     final_data = gen_compression_dist_df_from_leveldict(level_dict, game, [comp_type], [bc], base_file_path )
@@ -129,6 +138,10 @@ def calculate_linncorr_of_projection_for_bc(level_dict, correlation_data, bc, co
     linncorrs = list()
     linncorrs.append(game.name)
     temp_corrsdict = get_linear_correlations_from_df(final_data, [comp_type], [bc], linn_corrs_path)
+    #Extract only BCDist name, linncorr and P value
+    #onlykey = list(temp_corrsdict)[0]
+    #output = list()
+    #output+=[[temp_corrsdict[onlykey][1]], [temp_corrsdict[onlykey][2]], [temp_corrsdict[onlykey][3]]]
     return temp_corrsdict
 
 ###########################################################################################
@@ -136,27 +149,29 @@ def calculate_linncorr_of_projection_for_bc(level_dict, correlation_data, bc, co
 ###########################################################################################
 
 def vanilla_dr_for_levelset(level_wrappers, game, comp_type, bc_list, base_file_path):
-    algo_output = multigenerator_compression(level_wrappers, game, comp_type, 2, False, base_file_path)
+
+    #Create Folder
+    os.makedirs(base_file_path)
+
+    algo_output = multigenerator_compression(level_wrappers, game, comp_type, 2, True, base_file_path)
     updated_dict = update_levelwrapper_datacomp_features(level_wrappers, algo_output, comp_type)
     comp_dist_df = gen_compression_dist_df_from_leveldict(updated_dict,game, [comp_type],bc_list, base_file_path)
 
     lincorrdict = dict()
-    linncorrs.append(game.name)
     lincorrsfilepath = Path(base_file_path + "BenchmarkDR_linncorrs.txt")
     temp_corrsdict = get_linear_correlations_from_df(comp_dist_df, [comp_type], bc_list, lincorrsfilepath)
     #Look through dictionary of linear correlations, add them to outout
     for key in temp_corrsdict:
         linncorrs = list()
-        linncorrs+=[game.name, (runcount+1)]
+        linncorrs.append(game.name)
         linncorrs+=temp_corrsdict[key]
-        lincorrdict[game.name + " " + str(runcount) + key] = linncorrs
-    runcount += 1
+        lincorrdict[game.name + " " + key] = linncorrs
 
-    finallinncorrsdf = pd.DataFrame.from_dict(lincorrdict, orient = 'index', columns = ['Game', 'Run', 'Compression_Dist',  'BCDist', 'Spearman Coeff', 'Spearman P Val'] )
-    finaloutputpath = Path(base_file_path+ "BenchmarkDR_linncorrs.csv")
-    finallinncorrsdf.to_csv(finaloutputpath, index = False)
+    #finallinncorrsdf = pd.DataFrame.from_dict(lincorrdict, orient = 'index', columns = ['Game', 'Compression_Dist',  'BCDist', 'Spearman Coeff', 'Spearman P Val'] )
+    #finaloutputpath = Path(base_file_path+ "BenchmarkDR_linncorrs.csv")
+    #finallinncorrsdf.to_csv(finaloutputpath, index = False)
 
-    return
+    return lincorrdict
 
 
 ########################################
@@ -178,7 +193,7 @@ def get_model_ready_data_from_levelwrapperdict_and_bclist(levelwrappers, bc_list
         matrixes_array.append(onehot_rep)
         levelbcs = []
         for bc in bc_list:
-            levelbcs.append(leveldict[key].bc_vals[bc])
+            levelbcs.append(levelwrappers[key].bc_vals[bc])
         bcs_array.append([levelbcs])
 
 
@@ -205,25 +220,57 @@ def update_levelwrappers_with_onehot(levelwrappers, game):
 #WRAPPER METHODS FOR FULL RUNS
 ###################################################################
 
-def fullrun_cnn_and_dr_benchmark(game, bc_list, comp_algo, output_path_root):
+def fullrun_cnn_and_dr_benchmark(game, bc_list, comp_algo, output_path_root, run_count):
+
+    all_runs_cnn_dict = dict()
+    all_runs_dr_dict = dict()
+
+
+    for i in range(run_count):
+        run_path = output_path_root +"/RUN "+str(i)+"/"
+
+        level_wrappers = dict()
+        if(game == Game.Loderunner):
+            level_wrappers=  get_randnum_levelwrappers_for_game(game, 150)
+        else:
+            level_wrappers = get_randnum_levelwrappers_for_game(game, 1000)
+
+        cnn_corr_dict = generate_and_validate_CNN_compressions_for_bc_set(game, level_wrappers, bc_list, comp_algo, run_path+"/CNN_RUNS/")
+
+        for key in cnn_corr_dict:
+            all_runs_cnn_dict["Run "+str(i)+" "+key] = cnn_corr_dict[key]
+
+        dr_corr_dict = vanilla_dr_for_levelset(level_wrappers, game, comp_algo, bc_list, run_path + "/DR_RUNS/")
+
+        for key in dr_corr_dict:
+            all_runs_dr_dict["Run "+str(i)+" "+key] = dr_corr_dict[key]
+        
+
+    finalCNNlinncorrsdf = pd.DataFrame.from_dict(all_runs_cnn_dict, orient = 'index', columns = ['Compression_Dist',  'BCDist', 'Spearman Coeff', 'Spearman P Val'] )
+    finaloutputpath = Path(output_path_root+ "/Total CNN Lin Corrs.csv")
+    finalCNNlinncorrsdf.to_csv(finaloutputpath, index = True)
+
+    finalDRlinncorrsdf = pd.DataFrame.from_dict(all_runs_dr_dict, orient = 'index', columns = ['Game', 'Compression_Dist',  'BCDist', 'Spearman Coeff', 'Spearman P Val'] )
+    finalDRoutputpath = Path(output_path_root+ "/Total DR Lin Corrs.csv")
+    finalDRlinncorrsdf.to_csv(finalDRoutputpath, index = True)
+
     return
 
-def generate_and_validate_compressions_for_bc_set(game, level_wrappers, bc_list, comp_algo, output_path_root):
+
+
+def generate_and_validate_CNN_compressions_for_bc_set(game, level_wrappers, bc_list, comp_algo, output_path_root):
     
     level_shape = get_level_heightandwidth_for_game(game)
     tile_type_count = get_folder_and_tiletypedict_for_game(game)['Tile_Type_Dict']["CountOfNumericTileTypes"]
     update_levelwrappers_with_onehot(level_wrappers, game)
+
+    all_bcs_dicts = list()
 
     #for bc in bc_list:
     for i in range(len(bc_list)):
         train_bcs = bc_list.copy()
         train_bcs.pop(i)
         curr_bc = bc_list[i]
-        #print("Bc list: " + str(bc_list))
-        #print("Curr BC: " + str(curr_bc))
-        #print("Train BC list: " + str(train_bcs))
-
-        #print("Train bcs length: " + str(len(train_bcs)))
 
         bcrun_fileroot = output_path_root + "/"+curr_bc.name + "_Run/"
 
@@ -236,13 +283,21 @@ def generate_and_validate_compressions_for_bc_set(game, level_wrappers, bc_list,
 
         #get_penultimate_layer_levelweights(leveldict, test_model, True, output_files_name + 'IntermediateOutput.csv')
 
-        comp_weights = generate_visualisation_from_cnn(test_data, full_model, game, comp_algo, True, bcrun_fileroot + 'IntermediateWeights.csv',  True, bcrun_fileroot + 'CompressedWeights.csv' )
+        comp_weights = generate_visualisation_from_cnn(test_data, full_model, game, comp_algo, True, bcrun_fileroot + 'IntermediateWeights.csv',  True, bcrun_fileroot + 'CompressedWeights.csv', True, bcrun_fileroot + "CNN_Compression_Visual.png" )
 
 
-        linncorrs = calculate_linncorr_of_projection_for_bc(test_data, comp_weights, curr_bc, compalgo, bcrun_fileroot, output_path_root +"LinearCorrelations.txt")
+        linncorrs = calculate_linncorr_of_projection_for_bc(test_data, comp_weights, curr_bc, compalgo, bcrun_fileroot, output_path_root +"CNNComp_LinearCorrelations.txt")
 
         print("Linn corrs for BC: "  + curr_bc.name)
         print(linncorrs)
+
+        all_bcs_dicts.append(linncorrs)
+
+    assembled_bc_dict = dict()
+    for d in all_bcs_dicts:
+        assembled_bc_dict.update(d)
+
+    return assembled_bc_dict
 
 
 
@@ -252,22 +307,25 @@ def generate_and_validate_compressions_for_bc_set(game, level_wrappers, bc_list,
 
 #Testing model generation
 
-game = Game.Boxoban
+game = Game.Mario
 compalgo = CompressionType.PCA
 
 #LR Full list
-#bc_full_list = [BCType.EmptySpace, BCType.EnemyCount,BCType.Linearity, BCType.Density]
+bc_full_list = [BCType.EmptySpace, BCType.EnemyCount,BCType.Linearity, BCType.Density]
 #Boxoban BCs
-bcs = [BCType.EmptySpace, BCType.Contiguity]
+#bcs = [BCType.EmptySpace, BCType.Contiguity]
 output_files_name = OUTPUT_PATH +'/DRBenchmarkTest/'
 
-leveldict = get_randnum_levelwrappers_for_game(game, 1000)
+#leveldict = get_randnum_levelwrappers_for_game(game, 1000)
+
+#Testing wrapper
+fullrun_cnn_and_dr_benchmark(game, bc_full_list, compalgo, OUTPUT_PATH +"/MultiRunMarioConsistancyTest1/", 2)
 
 #Testing a full run
-#generate_and_validate_compressions_for_bc_set(game, leveldict, bcs, compalgo, output_files_name)
+#generate_and_validate_CNN_compressions_for_bc_set(game, leveldict, bcs, compalgo, output_files_name)
 
 #Testing DR benchmarking
-vanilla_dr_for_levelset(leveldict, game, compalgo, bcs, output_files_name)
+#vanilla_dr_for_levelset(leveldict, game, compalgo, bcs, output_files_name)
 
 
 #Testing modules individually

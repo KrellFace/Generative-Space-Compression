@@ -33,6 +33,7 @@ def multigenerator_compression(levelwrapper_dict, game, comp_algo, component_cou
     compressed_info = get_compression_algo_projection(processed_levels.drop('generator_name', axis=1), comp_algo, component_count=component_count)
     #Readding the name of the generator for each level to the list of all levels and their PCs
     compressed_info[0]['generator_name'] = gen_name_list
+
     if visualise == True:
         plot_filename = plot_filename_root + " " + comp_algo.name + ".png"
         plot_compressed_data(compressed_info[0], compressed_info[1], comp_algo,plot_filename, list(folder_dict.keys()))

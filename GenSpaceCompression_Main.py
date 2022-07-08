@@ -9,7 +9,7 @@ algolist = [CompressionType.PCA, CompressionType.SVD, CompressionType.MCA]
 tot_lvls_evaled = 100
 runs_per_game = 1
 visualise = True
-fileprefix =  "BCStorage23Final"
+fileprefix =  "ScatterPlotTest1"
 
 overall_start_time = datetime.now()
 component_count = 2
