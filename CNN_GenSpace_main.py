@@ -1,3 +1,4 @@
+from inspect import CO_ASYNC_GENERATOR
 from typing import List
 from src.func.mainComp import *
 from src.config.enumsAndConfig import *
@@ -9,89 +10,164 @@ import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
 from tensorflow.keras import datasets, layers, models, Model
+from tensorflow.keras.optimizers import Adam
 import csv
+import time
+from datetime import timedelta
+from datetime import datetime
 
 
-OUTPUT_PATH  = '../output'
+OUTPUT_PATH  = '/output'
 
 
 #########################################################################################
 #FUNCTIONALITY FOR PRODUCING, TRAINING AND SAVING CONVOLUTIONAL NEURAL NETWORKS
 ########################################################################################
 
+class CNNType(Enum):
+    Basic = 1,
+    VGG16 = 2
+
 #This module is for training a CNN to predict the BCs of input game levels
 #It takes in a set of level_wrappers with BCs calculated, and is instructed to not train on one of the BCs
 #It outputs the trained CNN, which should be saved in some form
-def train_and_save_CNN(level_wrappers, game, level_shape, tile_type_count, bcs_to_train, output_path, print_eval = False, save_model = False):
-
+def train_and_save_CNN(level_wrappers, game, level_shape, tile_type_count, bcs_to_train, cnn_type, output_path, logfile, print_eval = False, save_model = False, cnn_pure = False):
 
     input_shape = (level_shape[0], level_shape[1], tile_type_count)
 
-    model = get_model(input_shape, len(bcs_to_train))
+    model = get_model(input_shape, len(bcs_to_train), cnn_type, cnn_pure)
 
-    onehot_matrixes, bcs = get_model_ready_data_from_levelwrapperdict_and_bclist(level_wrappers,bcs_to_train, game)
+    onehot_matrixes, bcs = get_model_ready_data_from_levelwrapperdict_and_bclist(level_wrappers, bcs_to_train, game)
 
     model.fit(onehot_matrixes, bcs, verbose=0, epochs=100)
+    
+    """
+    print("Main Model penultimate weights:")
+    print("Config:")
+    print(model.layers[-2].get_config())
+    print("Weights:")
+    print(model.layers[-2].get_weights())
+    """
 
     #prediction = model.predict(onehot_matrixes)
     #print("Prediction:")
 
-    if(print_eval):		
-        mae = model.evaluate(onehot_matrixes, bcs, verbose=0)
-        # store result
-        print("MeanAverageError:" + '>%.3f' % mae)
+    #if(print_eval):		
+    mae = model.evaluate(onehot_matrixes, bcs, verbose=0)
+    # store result
+    
+    eval_cnn_line = ("MeanAverage Error for CNN of type: " + cnn_type.name + " " + '>%.3f' % mae)
+    add_line_to_logfile(logfile, eval_cnn_line)
+    #print("MeanAverageError:" + '>%.3f' % mae)
     
     if(save_model):
         model.save(output_path)
 
-
     return model
 
 
-def get_model(in_shape, bc_count):
+def get_model(in_shape, bc_count, cnn_type, cnn_pure = False):
 	#From CNN tutorial
     #Create convolutional base using a common pattern
     #A stack of Conv2d and MaxPooling2D layers
-    model = models.Sequential()
-    model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=in_shape))
-    model.add(layers.MaxPooling2D((2, 2)))
-    model.add(layers.Conv2D(64, (3, 3), activation='relu', padding = "same"))
-    model.add(layers.MaxPooling2D((2, 2)))
-    model.add(layers.Conv2D(64, (3, 3), activation='relu', padding = "same"))
+    if (cnn_type == CNNType.Basic):
+        model= models.Sequential()
+        model.add(layers.Conv2D(filters=32, kernel_size=(3, 3), activation='relu', input_shape=in_shape))
+        model.add(layers.MaxPooling2D((2, 2)))
+        model.add(layers.Conv2D(filters=64, kernel_size=(3, 3), activation='relu', padding = "same"))
+        model.add(layers.MaxPooling2D((2, 2)))
+        model.add(layers.Conv2D(filters=64, kernel_size=(3, 3), activation='relu', padding = "same"))
 
-    #Add Dense layers to the top of the model
-    #This does classification on the last tensor output
-    #Takes 1D vectors as an input, so first we need to flatten
-    model.add(layers.Flatten())
-    model.add(layers.Dense(64, activation='relu', name = "penultimate_layer"))
-    #model.add(layers.Dense(2, activation='relu', name = "penultimate_layer"))
+        #Add Dense layers to the top of the model
+        #This does classification on the last tensor output
+        #Takes 1D vectors as an input, so first we need to flatten
+        model.add(layers.Flatten())
+        if cnn_pure:
+            model.add(layers.Dense(2, activation='relu', name = "penultimate_layer"))
+        else:
+            model.add(layers.Dense(64, activation='relu', name = "penultimate_layer"))
+        #model.add(layers.Dense(2, activation='relu', name = "penultimate_layer"))
 
-    #Two Outputs to the final dense layer as we have 2 BCs
-    model.add(layers.Dense(bc_count, name = "final_layer"))
-    #model.summary()
-    model.compile(loss='mae', optimizer='adam')
-    return model
+        model.add(layers.Dense(bc_count, name = "final_layer"))
+        #model.summary()
+        model.compile(loss='mae', optimizer='adam')
+        #print("Model summary:")
+        #print(model.summary())
+        
+        return model
+    elif (cnn_type == CNNType.VGG16):
+        model = Sequential()
+        model.add(layers.Conv2D(input_shape=in_shape,filters=64,kernel_size=(3,3),padding="same", activation="relu"))
+        model.add(layers.Conv2D(filters=64,kernel_size=(3,3),padding="same", activation="relu"))
+        model.add(layers.MaxPool2D(pool_size=(2,2),strides=(2,2), padding='same'))
+        model.add(layers.Conv2D(filters=128, kernel_size=(3,3), padding="same", activation="relu"))
+        model.add(layers.Conv2D(filters=128, kernel_size=(3,3), padding="same", activation="relu"))
+        model.add(layers.MaxPool2D(pool_size=(2,2),strides=(2,2), padding='same'))
+        model.add(layers.Conv2D(filters=256, kernel_size=(3,3), padding="same", activation="relu"))
+        model.add(layers.Conv2D(filters=256, kernel_size=(3,3), padding="same", activation="relu"))
+        model.add(layers.Conv2D(filters=256, kernel_size=(3,3), padding="same", activation="relu"))
+        model.add(layers.MaxPool2D(pool_size=(2,2),strides=(2,2), padding='same'))
+        model.add(layers.Conv2D(filters=512, kernel_size=(3,3), padding="same", activation="relu"))
+        model.add(layers.Conv2D(filters=512, kernel_size=(3,3), padding="same", activation="relu"))
+        model.add(layers.Conv2D(filters=512, kernel_size=(3,3), padding="same", activation="relu"))
+        model.add(layers.MaxPool2D(pool_size=(2,2),strides=(2,2), padding='same'))
+        model.add(layers.Conv2D(filters=512, kernel_size=(3,3), padding="same", activation="relu"))
+        model.add(layers.Conv2D(filters=512, kernel_size=(3,3), padding="same", activation="relu"))
+        model.add(layers.Conv2D(filters=512, kernel_size=(3,3), padding="same", activation="relu"))
+        model.add(layers.MaxPool2D(pool_size=(2,2),strides=(2,2), padding='same'))
+        model.add(layers.Flatten())
+        model.add(Dense(units=4096,activation="relu"))
+        if cnn_pure:
+            model.add(Dense(units=2,activation="relu"))
+        else:
+            model.add(Dense(units=4096,activation="relu"))
+        model.add(Dense(units=bc_count))
+        opt = Adam(lr=0.001)
+        model.compile(optimizer=opt, loss='mae')
+        #print("Model summary:")
+        #print(model.summary())
+        return model
+    else:
+        print("CNN Type not recognised, please check input")
 
 
 #########################################################################################
 #FUNCTIONALITY FOR GENERATING GENERATIVE SPACE VISUALISATIONS FROM LEVELS+CNN
 ########################################################################################
 
-def generate_visualisation_from_cnn(level_wrappers, model, game, comp_algo, save_intermediate_output = False, intermed_output_path = '', save_comp_weights = False, comp_weights_path = '', save_visual = False, visual_path = ''):
+def generate_visualisation_from_cnn(level_wrappers, model, game, comp_algo, save_intermediate_output = False, intermed_output_path = '', save_comp_weights = False, comp_weights_path = '', save_visual = False, visual_path = '', cnn_pure = False):
     #First we need to create our intermediate layer model
-    compiled_level_weights = get_penultimate_layer_levelweights(level_wrappers,model, save_intermediate_output,  intermed_output_path)
+    compiled_level_weights = get_penultimate_layer_leveloutput(level_wrappers,model, save_intermediate_output,  intermed_output_path)
 
-    gen_name_list = compiled_level_weights['generator_name'].tolist()
-    data = get_compression_algo_projection(compiled_level_weights.drop('generator_name', axis=1), comp_algo)
-    data[0]['generator_name'] = gen_name_list
+    data = None
+    compressed_weights = None
+    folder_dict =  get_folder_and_tiletypedict_for_game(game)['Folder_Dict']
+
+    #If we are using DR to compress the assembled weights, follow the normal process
+    if not cnn_pure:
+        #print("Cnn impure, following normal process")
+        gen_name_list = compiled_level_weights['generator_name'].tolist()
+        data = get_compression_algo_projection(compiled_level_weights.drop('generator_name', axis=1), comp_algo)
+        data[0]['generator_name'] = gen_name_list
+        plot_compressed_data(data[0], data[1], [(comp_algo.name + ' 1'), (comp_algo.name + ' 2')],visual_path, list(folder_dict.keys()))
+        
+        compressed_weights = data[0]
+    #Otherwise, just rename the columns
+    else:
+        cnn_puredata = compiled_level_weights.rename(columns={0: 'CNN_Output 1', 1: 'CNN_Output 2'})
+        #print("Pure data head:")
+        #print(cnn_puredata.head)
+        plot_compressed_data(cnn_puredata, 0, [('CNN_Output 1'), ('CNN_Output 2')],visual_path, list(folder_dict.keys()))
+        
+        compressed_weights = cnn_puredata
 
     #print("Comp data head:")
     #print(data[0].head)
 
-    folder_dict =  get_folder_and_tiletypedict_for_game(game)['Folder_Dict']
-    plot_compressed_data(data[0], data[1], comp_algo,visual_path, list(folder_dict.keys()))
+    #folder_dict =  get_folder_and_tiletypedict_for_game(game)['Folder_Dict']
+    #plot_compressed_data(data[0], data[1], [(comp_algo.name + ' 1'), (comp_algo.name + ' 2')],visual_path, list(folder_dict.keys()))
 
-    compressed_weights = data[0]
+    #compressed_weights = data[0]
 
     if(save_comp_weights):
         
@@ -100,25 +176,33 @@ def generate_visualisation_from_cnn(level_wrappers, model, game, comp_algo, save
     return compressed_weights
 
 #Return a Dataframe of all level specific extracted weights
-def get_penultimate_layer_levelweights(level_wrappers, model, save_output = False, output_path = ''):
+def get_penultimate_layer_leveloutput(level_wrappers, model, save_output = False, output_path = ''):
 
     intermediate_layer_model = Model(inputs=model.input, outputs=model.layers[-2].output)
 
     total_intermediate_outputs = list()
+
+    """
+    print("Intermediate Model final layer weights:")
+    print("Config:")
+    print(intermediate_layer_model.layers[-1].get_config())
+    print("Weights:")
+    print(intermediate_layer_model.layers[-1].get_weights())
+    """
 
     for level_key in level_wrappers:
         onehot_rep = level_wrappers[level_key].onehot_rep
         level_weights = intermediate_layer_model.predict(onehot_rep[np.newaxis, ...])
         #print(intermediate_output.shape)
         flat = np.ndarray.flatten(level_weights)
-        level_weights_df = pd.DataFrame(flat.reshape(-1, len(flat)), columns=range(0, 64), index=[level_key])
+
+        #level_weights_df = pd.DataFrame(flat.reshape(-1, len(flat)), columns=range(0, 64), index=[level_key])
+        #level_weights_df = pd.DataFrame(flat.reshape(-1, len(flat)), columns=range(0, 4096), index=[level_key])
+        level_weights_df = pd.DataFrame(flat.reshape(-1, len(flat)), columns=range(0, len(flat)), index=[level_key])
         level_weights_df.insert(0,"generator_name",level_wrappers[level_key].generator_name)
         total_intermediate_outputs.append(level_weights_df)
     
     compiled = pd.concat(total_intermediate_outputs, ignore_index=False)
-
-    #print("Compiled head:")
-    #print(compiled.head)
 
     if(save_output):
         compiled.to_csv(output_path)
@@ -127,22 +211,26 @@ def get_penultimate_layer_levelweights(level_wrappers, model, save_output = Fals
 
 
 ###########################################################################################
-#FUNCTIONALITY FOR EVALUATING A 2D PROJECTION OF LEVELS, BASED ON CORRELATION BETWEEN VECTOR DISTANCES AND A SPECIFIED BC
+#FUNCTIONALITY FOR EVALUATING A 2D PROJECTION OF LEVELS, BASED ON CORRELATION BETWEEN VECTOR DISTANCES AND BCS
 ############################################################################################
 
-def calculate_linncorr_of_projection_for_bc(level_dict, correlation_data, bc, comp_type, base_file_path, linn_corrs_path = 'CNNComp_LinearCorrelations.txt', ):
+def calculate_linncorr_of_projection_for_bc(level_dict, correlation_data, bcs, comp_type, base_file_path, linn_corrs_path = 'CNNComp_LinearCorrelations.txt', ):
+
+    #print("Corr data head")
+    #print(correlation_data.head)
     update_levelwrapper_datacomp_features(level_dict, correlation_data, comp_type)
 
-    final_data = gen_compression_dist_df_from_leveldict(level_dict, game, [comp_type], [bc], base_file_path )
+    final_data = gen_compression_dist_df_from_leveldict(level_dict, game, [comp_type], bcs, base_file_path )
 
     linncorrs = list()
     linncorrs.append(game.name)
-    temp_corrsdict = get_linear_correlations_from_df(final_data, [comp_type], [bc], linn_corrs_path)
+    temp_corrsdict = get_linear_correlations_from_df(final_data, [comp_type], bcs, linn_corrs_path)
     #Extract only BCDist name, linncorr and P value
     #onlykey = list(temp_corrsdict)[0]
     #output = list()
     #output+=[[temp_corrsdict[onlykey][1]], [temp_corrsdict[onlykey][2]], [temp_corrsdict[onlykey][3]]]
     return temp_corrsdict
+
 
 ###########################################################################################
 #FUNCTIONALITY FOR VANILLA DIMENSIONALITY REDUCTION RUNS ON SETS OF LEVELS
@@ -196,8 +284,6 @@ def get_model_ready_data_from_levelwrapperdict_and_bclist(levelwrappers, bc_list
             levelbcs.append(levelwrappers[key].bc_vals[bc])
         bcs_array.append([levelbcs])
 
-
-
         #if(game == Game.Loderunner or game == Game.Mario):
         #    bcs_array.append([leveldict[key].empty_space, leveldict[key].enemy_count, leveldict[key].linearity])
         #elif(game == Game.Boxoban):
@@ -216,39 +302,94 @@ def update_levelwrappers_with_onehot(levelwrappers, game):
         #flat_rep = np.ndarray.flatten(onehot_rep)
     return
 
+def add_line_to_logfile(logfile, line):
+    print(line)
+    with open(logfile, "a") as file_object:
+        file_object.write("\n")
+        file_object.write(datetime.now().strftime("%m/%d/%Y, %H:%M:%S"))
+        file_object.write("\n")
+        file_object.write(line)
+
 #####################################################################
 #WRAPPER METHODS FOR FULL RUNS
 ###################################################################
 
-def fullrun_cnn_and_dr_benchmark(game, bc_list, comp_algo, output_path_root, run_count):
+def fullrun_VGG16_and_benchmarks(game, bc_list, cnn_output_comp_algo, baseline_comp_algo, output_path_root, run_count, lvls_per_run, tt_split, validate_bcs_individually):
 
-    all_runs_cnn_dict = dict()
+    all_runs_vgg16_dict = dict()
+    all_runs_basiccnn_dict = dict()
     all_runs_dr_dict = dict()
+
+    os.makedirs(output_path_root)
+    logfile = output_path_root +"log.txt"
+    f = open(logfile, 'w')
+
+    start = time.time()
+
+    startline = "Commencing full experiment for game: " + game.name + " with Run Count: " + str(run_count)
+    add_line_to_logfile(logfile, startline)
+    bcs_line = "BCs to be processed: "
+    for bc in bc_list:
+        bcs_line+= (bc.name + ", ")
+    add_line_to_logfile(logfile, bcs_line)
+    lvls_line = "Levels per run: " + str(lvls_per_run) + ", and train/test split ratio: " + str(tt_split)
+    add_line_to_logfile(logfile, lvls_line)
 
 
     for i in range(run_count):
+
+        run_log_line = "Run " + str(i) + " - Starting with runtime " + str(timedelta(seconds=(time.time()-start)))
+        add_line_to_logfile(logfile, run_log_line)
+
         run_path = output_path_root +"/RUN "+str(i)+"/"
+
+        r_levels_line = ("Retrieving " + str(lvls_per_run) + " levels for Run: "+ str(i) + " for game: " + game.name + " at time " + str(timedelta(seconds=(time.time()-start))))
+        add_line_to_logfile(logfile, r_levels_line)
 
         level_wrappers = dict()
         if(game == Game.Loderunner):
             level_wrappers=  get_randnum_levelwrappers_for_game(game, 150)
         else:
-            level_wrappers = get_randnum_levelwrappers_for_game(game, 1000)
+            level_wrappers = get_randnum_levelwrappers_for_game(game, lvls_per_run)
 
-        cnn_corr_dict = generate_and_validate_CNN_compressions_for_bc_set(game, level_wrappers, bc_list, comp_algo, run_path+"/CNN_RUNS/")
+        #VGG16 Compression
+        start_vgg16_line = ("Levels retrieved. Starting VGG16 compression and visualisation" + " at time " + str(timedelta(seconds=(time.time()-start))))
+        add_line_to_logfile(logfile, start_vgg16_line)
+        
+        vgg16_corr_dict = generate_and_validate_CNN_compressions_for_bc_set(game, level_wrappers, bc_list, CNNType.VGG16, cnn_output_comp_algo, run_path+"/CNN_RUNS/", logfile, start, validate_bcs_individually, tt_split)
 
-        for key in cnn_corr_dict:
-            all_runs_cnn_dict["Run "+str(i)+" "+key] = cnn_corr_dict[key]
+        for key in vgg16_corr_dict:
+            all_runs_vgg16_dict["Run "+str(i)+" "+key] = vgg16_corr_dict[key]
 
-        dr_corr_dict = vanilla_dr_for_levelset(level_wrappers, game, comp_algo, bc_list, run_path + "/DR_RUNS/")
+        #Basic CNN Compression
+        start_basicnn_line = ("VGG16 Compression completed. Starting Basic CNN compression and visualisation" + " at time " + str(timedelta(seconds=(time.time()-start))))
+        add_line_to_logfile(logfile, start_basicnn_line)
+        
+        basiccnn_corr_dict = generate_and_validate_CNN_compressions_for_bc_set(game, level_wrappers, bc_list, CNNType.Basic, cnn_output_comp_algo, run_path+"/CNN_RUNS/", logfile, start, validate_bcs_individually, tt_split)
+
+        for key in basiccnn_corr_dict:
+            all_runs_basiccnn_dict["Run "+str(i)+" "+key] = basiccnn_corr_dict[key]
+
+        vanilla_dr_line = ("Run: "+ str(i) + " CNN processes complete. Starting vanilla DR" + " at time " + str(timedelta(seconds=(time.time()-start))))
+        add_line_to_logfile(logfile, vanilla_dr_line)
+        dr_corr_dict = vanilla_dr_for_levelset(level_wrappers, game, baseline_comp_algo, bc_list, run_path + "/DR_RUNS/")
 
         for key in dr_corr_dict:
             all_runs_dr_dict["Run "+str(i)+" "+key] = dr_corr_dict[key]
         
+        run_complete_line = ("Run: "+ str(i) + " completed" + " at time " + str(timedelta(seconds=(time.time()-start))))
+        add_line_to_logfile(logfile, run_complete_line)
+        
+    allruns_line = ("All runs completed. Generating final data " + " at time " + str(timedelta(seconds=(time.time()-start))))
+    add_line_to_logfile(logfile, allruns_line)
+    finalVGG16linncorrsdf = pd.DataFrame.from_dict(all_runs_vgg16_dict, orient = 'index', columns = ['Compression_Dist',  'BCDist', 'Spearman Coeff', 'Spearman P Val'] )
+    finalvgg16outputpath = Path(output_path_root+ "/Total VGG16 Lin Corrs.csv")
+    finalVGG16linncorrsdf.to_csv(finalvgg16outputpath, index = True)
 
-    finalCNNlinncorrsdf = pd.DataFrame.from_dict(all_runs_cnn_dict, orient = 'index', columns = ['Compression_Dist',  'BCDist', 'Spearman Coeff', 'Spearman P Val'] )
-    finaloutputpath = Path(output_path_root+ "/Total CNN Lin Corrs.csv")
-    finalCNNlinncorrsdf.to_csv(finaloutputpath, index = True)
+    
+    finalbasicCNNlindoorsdf = pd.DataFrame.from_dict(all_runs_basiccnn_dict, orient = 'index', columns = ['Compression_Dist',  'BCDist', 'Spearman Coeff', 'Spearman P Val'] )
+    finalbaseoutputpath = Path(output_path_root+ "/Total Basic CNN Lin Corrs.csv")
+    finalbasicCNNlindoorsdf.to_csv(finalbaseoutputpath, index = True)
 
     finalDRlinncorrsdf = pd.DataFrame.from_dict(all_runs_dr_dict, orient = 'index', columns = ['Game', 'Compression_Dist',  'BCDist', 'Spearman Coeff', 'Spearman P Val'] )
     finalDRoutputpath = Path(output_path_root+ "/Total DR Lin Corrs.csv")
@@ -258,7 +399,7 @@ def fullrun_cnn_and_dr_benchmark(game, bc_list, comp_algo, output_path_root, run
 
 
 
-def generate_and_validate_CNN_compressions_for_bc_set(game, level_wrappers, bc_list, comp_algo, output_path_root):
+def generate_and_validate_CNN_compressions_for_bc_set(game, level_wrappers, bc_list,cnn_type, comp_algo, output_path_root, logfile, starttime, bcs_individually, tt_split):
     
     level_shape = get_level_heightandwidth_for_game(game)
     tile_type_count = get_folder_and_tiletypedict_for_game(game)['Tile_Type_Dict']["CountOfNumericTileTypes"]
@@ -266,30 +407,74 @@ def generate_and_validate_CNN_compressions_for_bc_set(game, level_wrappers, bc_l
 
     all_bcs_dicts = list()
 
-    #for bc in bc_list:
-    for i in range(len(bc_list)):
-        train_bcs = bc_list.copy()
-        train_bcs.pop(i)
-        curr_bc = bc_list[i]
+    if bcs_individually:
+        for i in range(len(bc_list)):
+            
+            train_bcs = bc_list.copy()
+            train_bcs.pop(i)
+            curr_bc = bc_list[i]
 
-        bcrun_fileroot = output_path_root + "/"+curr_bc.name + "_Run/"
+            start_cnn_line = ("Starting CNN training for BC" + curr_bc.name + " with train/test split: " + str(tt_split) + " with runtime " + str(timedelta(seconds=(time.time()-starttime))))
+            add_line_to_logfile(logfile, start_cnn_line)
+
+            bcrun_fileroot = output_path_root + "/"+curr_bc.name + "_Run/"
+
+            lvlwrapseries = pd.Series(level_wrappers)
+            #print(lvlwrapseries.head)
+            training_data , test_data  = [i.to_dict() for i in train_test_split(lvlwrapseries, train_size=tt_split)] 
+
+            cnn_pure = False
+            if(comp_algo == CompressionType.CNN_Output):
+                cnn_pure = True
+            full_model = train_and_save_CNN(training_data, game, level_shape, tile_type_count, train_bcs, cnn_type, bcrun_fileroot + 'model', logfile, True, True, cnn_pure)
+
+            #get_penultimate_layer_leveloutput(leveldict, test_model, True, output_files_name + 'IntermediateOutput.csv')
+            
+            start_visual_line = ("Starting CNN trained. Starting visualisation generation with runtime " + str(timedelta(seconds=(time.time()-starttime))))
+            add_line_to_logfile(logfile, start_visual_line)
+
+            comp_weights = generate_visualisation_from_cnn(test_data, full_model, game, comp_algo, True, bcrun_fileroot + 'IntermediateWeights.csv',  True, bcrun_fileroot + 'CompressedWeights.csv', True, bcrun_fileroot + "CNN_Compression_Visual.png", cnn_pure)
+
+            
+            start_visual_line = ("Visualisation generation finished. Starting lincoor calculation with runtime " + str(timedelta(seconds=(time.time()-starttime))))
+            add_line_to_logfile(logfile, start_visual_line)
+
+            linncorrs = calculate_linncorr_of_projection_for_bc(test_data, comp_weights, [curr_bc], comp_algo, bcrun_fileroot, output_path_root +"CNNComp_LinearCorrelations.txt")
+
+            #print("Linn corrs for BC: "  + curr_bc.name)
+            #print(linncorrs)
+
+            all_bcs_dicts.append(linncorrs)
+    else:
+        start_cnn_line = ("Starting CNN training for full BC list with train/test split: " + str(tt_split) + " with runtime " + str(timedelta(seconds=(time.time()-starttime))))
+        add_line_to_logfile(logfile, start_cnn_line)
+
+        bcrun_fileroot = output_path_root + "/Combined BCs_Run/"
 
         lvlwrapseries = pd.Series(level_wrappers)
         #print(lvlwrapseries.head)
-        training_data , test_data  = [i.to_dict() for i in train_test_split(lvlwrapseries, train_size=0.8)] 
+        training_data , test_data  = [i.to_dict() for i in train_test_split(lvlwrapseries, train_size=tt_split)] 
+
+        cnn_pure = False
+        if(comp_algo == CompressionType.CNN_Output):
+            cnn_pure = True
+        full_model = train_and_save_CNN(training_data, game, level_shape, tile_type_count, bc_list, cnn_type, bcrun_fileroot + 'model', logfile, True, True, cnn_pure)
+
+        #get_penultimate_layer_leveloutput(leveldict, test_model, True, output_files_name + 'IntermediateOutput.csv')
         
+        start_visual_line = ("Starting CNN trained. Starting visualisation generation with runtime " + str(timedelta(seconds=(time.time()-starttime))))
+        add_line_to_logfile(logfile, start_visual_line)
 
-        full_model = train_and_save_CNN(training_data, game, level_shape, tile_type_count, train_bcs, bcrun_fileroot + 'model', True, True)
+        comp_weights = generate_visualisation_from_cnn(test_data, full_model, game, comp_algo, True, bcrun_fileroot + 'IntermediateWeights.csv',  True, bcrun_fileroot + 'CompressedWeights.csv', True, bcrun_fileroot + "CNN_Compression_Visual.png", cnn_pure)
 
-        #get_penultimate_layer_levelweights(leveldict, test_model, True, output_files_name + 'IntermediateOutput.csv')
+        
+        start_visual_line = ("Visualisation generation finished. Starting lincoor calculation with runtime " + str(timedelta(seconds=(time.time()-starttime))))
+        add_line_to_logfile(logfile, start_visual_line)
 
-        comp_weights = generate_visualisation_from_cnn(test_data, full_model, game, comp_algo, True, bcrun_fileroot + 'IntermediateWeights.csv',  True, bcrun_fileroot + 'CompressedWeights.csv', True, bcrun_fileroot + "CNN_Compression_Visual.png" )
+        linncorrs = calculate_linncorr_of_projection_for_bc(test_data, comp_weights, bc_list, comp_algo, bcrun_fileroot, output_path_root +"CNNComp_LinearCorrelations.txt")
 
-
-        linncorrs = calculate_linncorr_of_projection_for_bc(test_data, comp_weights, curr_bc, compalgo, bcrun_fileroot, output_path_root +"CNNComp_LinearCorrelations.txt")
-
-        print("Linn corrs for BC: "  + curr_bc.name)
-        print(linncorrs)
+        #print("Linn corrs for BC: "  + curr_bc.name)
+        #print(linncorrs)
 
         all_bcs_dicts.append(linncorrs)
 
@@ -307,19 +492,24 @@ def generate_and_validate_CNN_compressions_for_bc_set(game, level_wrappers, bc_l
 
 #Testing model generation
 
-game = Game.Mario
-compalgo = CompressionType.PCA
+game = Game.Boxoban
+bl_compalgo = CompressionType.PCA
+cnn_compmode = CompressionType.PCA
+#cnn_type = CNNType.VGG16
+process_bcs_individually = False
+rn_cnt = 5
+levels_per_run = 500
+tt_split = .8
 
-#LR Full list
-bc_full_list = [BCType.EmptySpace, BCType.EnemyCount,BCType.Linearity, BCType.Density]
-#Boxoban BCs
-#bcs = [BCType.EmptySpace, BCType.Contiguity]
-output_files_name = OUTPUT_PATH +'/DRBenchmarkTest/'
+output_files_name = OUTPUT_PATH +'/OUTPUTNAME HERE/'
 
-#leveldict = get_randnum_levelwrappers_for_game(game, 1000)
+bcs = get_BCs_for_game(game)
 
 #Testing wrapper
-fullrun_cnn_and_dr_benchmark(game, bc_full_list, compalgo, OUTPUT_PATH +"/MultiRunMarioConsistancyTest1/", 2)
+fullrun_VGG16_and_benchmarks(game, bcs, cnn_compmode, bl_compalgo, output_files_name, rn_cnt,levels_per_run, tt_split,  process_bcs_individually)
+
+
+#leveldict = get_randnum_levelwrappers_for_game(game, 1000)
 
 #Testing a full run
 #generate_and_validate_CNN_compressions_for_bc_set(game, leveldict, bcs, compalgo, output_files_name)
@@ -337,7 +527,7 @@ fullrun_cnn_and_dr_benchmark(game, bc_full_list, compalgo, OUTPUT_PATH +"/MultiR
 
 #test_model = train_and_save_CNN(leveldict, game, level_shape, tile_type_count, bcs_to_train, output_files_name + 'testModel', True, True)
 
-#get_penultimate_layer_levelweights(leveldict, test_model, True, output_files_name + 'IntermediateOutput.csv')
+#get_penultimate_layer_leveloutput(leveldict, test_model, True, output_files_name + 'IntermediateOutput.csv')
 
 #comp_weights = generate_visualisation_from_cnn(leveldict, test_model, game, compalgo, True, output_files_name + 'IntermediateWeights.csv',  True, output_files_name + 'CompressedWeights.csv' )
 

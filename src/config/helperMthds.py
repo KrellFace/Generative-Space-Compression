@@ -128,7 +128,9 @@ def get_compvals_for_algolist_for_levelpair(level1, level2, algolist):
         elif (algo == CompressionType.KPCA_POLY):
             vals+=[level1.KPCAPolyVal1, level1.KPCAPolyVal2, level2.KPCAPolyVal1, level2.KPCAPolyVal2]           
         elif (algo == CompressionType.KPCA_RBF):
-            vals+=[level1.KPCARbfVal1, level1.KPCARbfVal2, level2.KPCARbfVal1, level2.KPCARbfVal2]                        
+            vals+=[level1.KPCARbfVal1, level1.KPCARbfVal2, level2.KPCARbfVal1, level2.KPCARbfVal2]      
+        elif (algo == CompressionType.CNN_Output):
+            vals+=[level1.CNN_OutputVal1, level1.CNN_OutputVal2, level2.CNN_OutputVal1, level2.CNN_OutputVal2]                      
         else:
             print("Algo not recognised in get vals method")
     return vals
@@ -152,7 +154,9 @@ def get_distances_for_algolist_for_levelpair(level1, level2, algolist):
         elif (algo == CompressionType.KPCA_POLY):
             distances.append(calculateDistance(level1.KPCAPolyVal1, level1.KPCAPolyVal2, level2.KPCAPolyVal1, level2.KPCAPolyVal2))           
         elif (algo == CompressionType.KPCA_RBF):
-            distances.append(calculateDistance(level1.KPCARbfVal1, level1.KPCARbfVal2, level2.KPCARbfVal1, level2.KPCARbfVal2))
+            distances.append(calculateDistance(level1.KPCARbfVal1, level1.KPCARbfVal2, level2.KPCARbfVal1, level2.KPCARbfVal2))           
+        elif (algo == CompressionType.CNN_Output):
+            distances.append(calculateDistance(level1.CNN_OutputVal1, level1.CNN_OutputVal2, level2.CNN_OutputVal1, level2.CNN_OutputVal2))
         else:
             print("Algo not recognised in get distances method")
     return distances

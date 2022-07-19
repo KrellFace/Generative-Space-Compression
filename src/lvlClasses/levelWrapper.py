@@ -49,6 +49,9 @@ class LevelWrapper:
     KPCACosineVal1 = None
     KPCACosineVal2 = None 
 
+    CNN_OutputVal1 = None
+    CNN_OutputVal2 = None
+
     def __init__(self, name, generator_name, source_file, char_rep):
         self.data = []
         self.name = name

@@ -36,7 +36,8 @@ def multigenerator_compression(levelwrapper_dict, game, comp_algo, component_cou
 
     if visualise == True:
         plot_filename = plot_filename_root + " " + comp_algo.name + ".png"
-        plot_compressed_data(compressed_info[0], compressed_info[1], comp_algo,plot_filename, list(folder_dict.keys()))
+        #plot_compressed_data(compressed_info[0], compressed_info[1], comp_algo,plot_filename, list(folder_dict.keys()))
+        plot_compressed_data(compressed_info[0], compressed_info[1], [(comp_algo.name + ' 1'), (comp_algo.name + ' 2')],plot_filename, list(folder_dict.keys()))
     return compressed_info[0]
 
 

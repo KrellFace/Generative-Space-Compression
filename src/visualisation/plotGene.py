@@ -4,21 +4,19 @@ import src.config.enumsAndConfig as enumAndConfig
 import src.config.helperMthds as helper
 
 #Scatter plot of compressed level data 
-def plot_compressed_data(toplot, var_exp, compTyp, file_name, gen_names=[], label_extremes = False):
+def plot_compressed_data(toplot, var_exp, col_names, file_name, gen_names=[], label_extremes = False):
 
-    col1name = compTyp.name + ' 1'
-    col2name = compTyp.name + ' 2'
+    #col1name = compTyp.name + ' 1'
+    #col2name = compTyp.name + ' 2'
+    col1name = col_names[0]
+    col2name = col_names[1]
 
     fig = plt.figure(figsize = (8,8))
     ax = fig.add_subplot(1,1,1) 
-    if len(var_exp)>0:
-        #ax.set_xlabel(compTyp.name + ' 1: ' + str("{0:.3%}".format(var_exp[0])), fontsize = 15)
-        #ax.set_ylabel(compTyp.name +' 2: ' + str("{0:.3%}".format(var_exp[1])), fontsize = 15)
-        ax.set_xlabel(compTyp.name + ' 1: ', fontsize = 15)
-        ax.set_ylabel(compTyp.name +' 2', fontsize = 15)
-    else:
-        ax.set_xlabel(compTyp.name + ' 1', fontsize = 15)
-        ax.set_ylabel(compTyp.name +' 2', fontsize = 15) 
+    
+    ax.set_xlabel(col1name + ': ', fontsize = 15)
+    ax.set_ylabel(col2name + ': ', fontsize = 15)
+        
     title = os.path.basename(file_name)
     #Set title without .png     
     ax.set_title(title[0:len(title)-4], fontsize = 20)

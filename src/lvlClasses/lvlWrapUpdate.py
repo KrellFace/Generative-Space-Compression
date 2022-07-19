@@ -37,6 +37,12 @@ def update_levelwrapper_datacomp_features(level_dict, compdf, compression_type):
         for level in level_dict:
             level_dict[level].KPCARbfVal1 = compdf.loc[level][compression_type.name+' 1']
             level_dict[level].KPCARbfVal2 = compdf.loc[level][compression_type.name+' 2']  
+    elif(compression_type == CompressionType.CNN_Output):
+        for level in level_dict:
+            level_dict[level].CNN_OutputVal1 = compdf.loc[level][compression_type.name+' 1']
+            level_dict[level].CNN_OutputVal2 = compdf.loc[level][compression_type.name+' 2']  
+            #print("New level_dict vals for cnnoutput: " + str(level_dict[level].CNN_OutputVal1) + ", " + str(level_dict[level].CNN_OutputVal2))
+
     else:
         print('Algo type not recognised')
     return level_dict
