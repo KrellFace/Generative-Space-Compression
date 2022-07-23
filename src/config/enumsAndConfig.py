@@ -24,9 +24,9 @@ def get_level_heightandwidth_for_game(game):
 #Define which BCs we calculate for each game 
 def get_BCs_for_game(game):
     if (game == Game.Mario):
-        return [BCType.EnemyCount, BCType.Linearity, BCType.Density]
+        return [BCType.EmptySpace, BCType.EnemyCount, BCType.Linearity, BCType.Density]
     elif (game == Game.Boxoban):
-        return [BCType.EmptySpace, BCType.AdjustedContiguity, BCType.CorriCount]
+        return [BCType.EmptySpace, BCType.Contiguity, BCType.AdjustedContiguity, BCType.CorriCount]
     elif (game == Game.Loderunner):
         return [BCType.EmptySpace, BCType.EnemyCount, BCType.Linearity, BCType.Density]
 
