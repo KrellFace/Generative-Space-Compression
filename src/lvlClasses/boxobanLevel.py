@@ -45,9 +45,9 @@ class BoxobanLevel(LevelWrapper):
 
                 #Calculate CorridorScore
                 if  char_rep[y][x]==' ' and y>0 and y<len(char_rep)-1 and x>0 and x<len(char_rep[0])-1:
-                    if char_rep[y-1][x]  == '#' and char_rep[y+1][x]  == '#' and char_rep[y][x-1]  == ' ' and char_rep[y][x+1]  == ' ':
+                    if char_rep[y-1][x]  == '#' and char_rep[y+1][x]  == '#' and char_rep[y][x-1]  != '#' and char_rep[y][x+1]  != '#':
                         temp_corriscore +=1
-                    elif char_rep[y-1][x]  == ' ' and char_rep[y+1][x]  == ' ' and char_rep[y][x-1]  == '#' and char_rep[y][x+1]  == '#':
+                    elif char_rep[y-1][x]  != '#' and char_rep[y+1][x]  != '#' and char_rep[y][x-1]  == '#' and char_rep[y][x+1]  == '#':
                         temp_corriscore +=1
             
         #self.box_count = temp_boxcount

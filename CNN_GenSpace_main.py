@@ -215,7 +215,10 @@ def get_penultimate_layer_leveloutput(level_wrappers, model, save_output = False
     compiled = pd.concat(total_intermediate_outputs, ignore_index=False)
 
     if(save_output):
-        compiled.to_csv(output_path)
+        try:
+            compiled.to_csv(output_path)
+        except:
+            print("Exception occured when saving intermediate outputs")
     
     return compiled
 
@@ -431,6 +434,7 @@ def generate_and_validate_CNN_compressions_for_bc_set(game, level_wrappers, bc_l
             add_line_to_logfile(logfile, start_cnn_line)
 
             bcrun_fileroot = output_path_root + "/"+curr_bc.name + "_Run/"
+            os.makedirs(bcrun_fileroot)
 
             lvlwrapseries = pd.Series(level_wrappers)
             #print(lvlwrapseries.head)
@@ -438,8 +442,6 @@ def generate_and_validate_CNN_compressions_for_bc_set(game, level_wrappers, bc_l
 
             full_model = train_and_save_CNN(training_data, game, level_shape, tile_type_count, train_bcs, cnn_type, bcrun_fileroot + 'model', logfile, True, True)
 
-            #get_penultimate_layer_leveloutput(leveldict, test_model, True, output_files_name + 'IntermediateOutput.csv')
-            
             start_visual_line = ("Starting CNN trained. Starting visualisation generation with runtime " + str(timedelta(seconds=(time.time()-starttime))))
             add_line_to_logfile(logfile, start_visual_line)
 
@@ -466,8 +468,6 @@ def generate_and_validate_CNN_compressions_for_bc_set(game, level_wrappers, bc_l
         training_data , test_data  = [i.to_dict() for i in train_test_split(lvlwrapseries, train_size=tt_split)] 
 
         full_model = train_and_save_CNN(training_data, game, level_shape, tile_type_count, bc_list, cnn_type, bcrun_fileroot + 'model', logfile, True, True)
-
-        #get_penultimate_layer_leveloutput(leveldict, test_model, True, output_files_name + 'IntermediateOutput.csv')
         
         start_visual_line = ("Starting CNN trained. Starting visualisation generation with runtime " + str(timedelta(seconds=(time.time()-starttime))))
         add_line_to_logfile(logfile, start_visual_line)
@@ -517,7 +517,7 @@ def batches_of_full_runs(games, vgg_lrs, basic_lrs, batches_path, rn_cnt, levels
 
 #Individual Run Set generation
 
-rungame = Game.Boxoban
+expgame = Game.Mario
 bl_compalgo = CompressionType.PCA
 cnn_compmode = CompressionType.PCA
 #cnn_type = CNNType.VGG16
@@ -525,23 +525,23 @@ process_bcs_individually = False
 rn_cnt = 5
 levels_per_run = 1000
 tt_split = .8
-vgg_adam_opt_lr = 0.00005
-bl_adam_opt_lr = 0.1
+vgg_adam_opt_lr = 0.0005
+bl_adam_opt_lr = 0.01
 
-output_files_name = OUTPUT_PATH +'/5 Runs Boxoban VGG-00005 BL-0.1/'
+output_files_name = OUTPUT_PATH +'/5 Runs Mario-ORE,Hop,PC Only VGG-0.0005 BL-0.01/'
 
-#bcs = get_BCs_for_game(game)
+bcs = get_BCs_for_game(expgame)
 
-#fullrun_VGG16_and_benchmarks(game, bcs, cnn_compmode, bl_compalgo, output_files_name, rn_cnt,levels_per_run, tt_split,  process_bcs_individually)
+fullrun_VGG16_and_benchmarks(expgame, bcs, cnn_compmode, bl_compalgo, output_files_name, rn_cnt,levels_per_run, tt_split,  process_bcs_individually)
 
 
 #Testing batches
 game_batch = [Game.Mario, Game.Mario, Game.Boxoban, Game.Boxoban]
-vglr_batch = [0.001, 0.0001, 0.00001, 0.000001]
-baselr_batch = [0.01, 0.01, 0.0001, 0.00001]
-batch_path = OUTPUT_PATH + '/VarriedLR_Batches/'
+vglr_batch = [0.0003, 0.0004, 0.00006, 0.00007]
+baselr_batch = [0.005, 0.008, 0.0012, 0.0015]
+batch_path = OUTPUT_PATH + '/Test Night Away Batches/'
 
-batches_of_full_runs(game_batch, vglr_batch, baselr_batch, batch_path, 1, 40, 0.8,  False)
+#batches_of_full_runs(game_batch, vglr_batch, baselr_batch, batch_path, 5, 1000, 0.8,  False)
 
 #leveldict = get_randnum_levelwrappers_for_game(game, 1000)
 
