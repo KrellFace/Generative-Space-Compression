@@ -102,7 +102,7 @@ def get_linear_correlations_from_df(df, algolist, bclist, filepath):
             spcorr, pspval = spearmanr(vals, bcvals)
             text = ('Spearmans correlation on ' + compression_dist + ' for BC: ' + bc + ' : %.3f' % spcorr + " with P Value: " + str("{:.2f}".format(pspval)))
             outputfile.write(text + "\n")
-            print(text)
+            #print(text)
             output[compression_dist + bc] = [compression_dist, bc, spcorr, pspval]
         
     outputfile.close()

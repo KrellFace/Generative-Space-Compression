@@ -1,30 +1,26 @@
-from inspect import CO_ASYNC_GENERATOR
-from typing import List
 from src.func.mainComp import *
 from src.config.enumsAndConfig import *
 from src.config.helperMthds import *
 import numpy as np
-from sklearn.model_selection import RepeatedKFold
 from sklearn.model_selection import train_test_split
-import tensorflow as tf
-from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
-from tensorflow.keras import datasets, layers, models, Model
+from tensorflow.keras import layers, models, Model
 from tensorflow.keras.optimizers import Adam
-import csv
 import time
 from datetime import timedelta
 from datetime import datetime
 
 
-OUTPUT_PATH  = '../output'
+OUTPUT_PATH  = '../Generative-Space-Compression/output'
 
 
 #########################################################################################
 #FUNCTIONALITY FOR PRODUCING, TRAINING AND SAVING CONVOLUTIONAL NEURAL NETWORKS
 ########################################################################################
 
+#Enum for the current varriants of CNN model the platform supports
 class CNNType(Enum):
+    #Basic is a custom simple CNN used as a experimental baseline
     Basic = 1,
     VGG16 = 2
 
@@ -46,7 +42,6 @@ def train_and_save_CNN(level_wrappers, game, level_shape, tile_type_count, bcs_t
     # store result
     eval_cnn_line = ("MeanAverage Error for CNN of type: " + cnn_type.name + " " + '>%.3f' % mae)
     add_line_to_logfile(logfile, eval_cnn_line)
-    #print("MeanAverageError:" + '>%.3f' % mae)
     
     if(save_model):
         model.save(output_path)
@@ -65,19 +60,13 @@ def get_model(in_shape, bc_count, cnn_type):
         model.add(layers.MaxPooling2D(pool_size=(2, 2),strides=(2,2), padding='same'))
         model.add(layers.Conv2D(filters=64, kernel_size=(3, 3), activation='relu', padding = "same"))
 
-        #Add Dense layers to the top of the model
-        #This does classification on the last tensor output
-        #Takes 1D vectors as an input, so first we need to flatten
         model.add(layers.Flatten())
         model.add(layers.Dense(64, activation='relu', name = "penultimate_layer"))
-        #model.add(layers.Dense(2, activation='relu', name = "penultimate_layer"))
 
         model.add(layers.Dense(bc_count))
         #model.summary()
         opt = Adam(bl_adam_opt_lr)
         model.compile(loss='mae', optimizer=opt)
-        #print("Model summary:")
-        #print(model.summary())
         
         return model
     elif (cnn_type == CNNType.VGG16):
@@ -107,8 +96,6 @@ def get_model(in_shape, bc_count, cnn_type):
         model.add(Dense(units=bc_count))
         opt = Adam(vgg_adam_opt_lr)
         model.compile(loss='mae', optimizer=opt)
-        #print("Model summary:")
-        #print(model.summary())
         return model
     else:
         print("CNN Type not recognised, please check input")
@@ -118,6 +105,7 @@ def get_model(in_shape, bc_count, cnn_type):
 #FUNCTIONALITY FOR GENERATING GENERATIVE SPACE VISUALISATIONS FROM LEVELS+CNN
 ########################################################################################
 
+#Method for producing an assembled matrix in which each input level is represented by two dimensions, which are created by extracting the level modulated weights from the penultimate layer of a CNN, and then compressed using dimmensonality reduction
 def generate_visualisation_from_cnn(level_wrappers, model, game, comp_algo, save_intermediate_output = False, intermed_output_path = '', save_comp_weights = False, comp_weights_path = '', save_visual = False, visual_path = '', cnn_pure = False):
     #First we need to create our intermediate layer model
     compiled_level_weights = get_penultimate_layer_leveloutput(level_wrappers,model, save_intermediate_output,  intermed_output_path)
@@ -139,7 +127,7 @@ def generate_visualisation_from_cnn(level_wrappers, model, game, comp_algo, save
 
     return compressed_weights
 
-#Return a Dataframe of all level specific extracted weights
+#Return a Dataframe of all level specific extracted weights from the penultimate layer of a trained input model
 def get_penultimate_layer_leveloutput(level_wrappers, model, save_output = False, output_path = ''):
 
     intermediate_layer_model = Model(inputs=model.input, outputs=model.layers[-2].output)
@@ -171,6 +159,7 @@ def get_penultimate_layer_leveloutput(level_wrappers, model, save_output = False
 #FUNCTIONALITY FOR EVALUATING A 2D PROJECTION OF LEVELS, BASED ON CORRELATION BETWEEN VECTOR DISTANCES AND BCS
 ############################################################################################
 
+#Calculate the linear correlations between the BC values for input levels, and their euclidean distance in compressed space
 def calculate_linncorr_of_projection_for_bc(game, level_dict, correlation_data, bcs, comp_type, base_file_path, linn_corrs_path = 'CNNComp_LinearCorrelations.txt'):
 
     update_levelwrapper_datacomp_features(level_dict, correlation_data, comp_type)
@@ -187,6 +176,7 @@ def calculate_linncorr_of_projection_for_bc(game, level_dict, correlation_data, 
 #FUNCTIONALITY FOR VANILLA DIMENSIONALITY REDUCTION RUNS ON SETS OF LEVELS
 ###########################################################################################
 
+#Apply pure dimmensionality reduction to encoded game levels, and return the linear correlation with their BC values and the euclidean distance in compressed space
 def vanilla_dr_for_levelset(level_wrappers, game, dr_comp_type, bc_list, base_file_path):
 
     #Create Folder
@@ -213,6 +203,7 @@ def vanilla_dr_for_levelset(level_wrappers, game, dr_comp_type, bc_list, base_fi
 #HELPER AND MISC METHODS
 ########################################
 
+#Return two arrays, one of one-hot matrices and one of BC arrays, ready for model training
 def get_model_ready_data_from_levelwrapperdict_and_bclist(levelwrappers, bc_list, game):
     matrixes_array = []
     bcs_array = []
@@ -231,6 +222,7 @@ def get_model_ready_data_from_levelwrapperdict_and_bclist(levelwrappers, bc_list
         count+=1
     return np.array(matrixes_array),np.array(bcs_array)
 
+#Store one-hot representations of levels in their level wrappers
 def update_levelwrappers_with_onehot(levelwrappers, game):
 
     tile_dict = get_folder_and_tiletypedict_for_game(game)['Tile_Type_Dict']
@@ -241,6 +233,7 @@ def update_levelwrappers_with_onehot(levelwrappers, game):
         levelwrappers[key].onehot_rep = onehot_rep
     return
 
+#Genertic method for writing lines to the log file for a run
 def add_line_to_logfile(logfile, line):
     print(line)
     with open(logfile, "a") as file_object:
@@ -253,6 +246,8 @@ def add_line_to_logfile(logfile, line):
 #WRAPPER METHODS FOR FULL RUNS
 ###################################################################
 
+
+#Conducts X runs of generative space compression using three methods: VGG16-based; Basic CNN-based; and Vanilla Dimesionality Reduction
 def fullrun_VGG16_and_benchmarks(game, bc_list, cnn_output_comp_algo, baseline_dr_algo, output_path_root, run_count, lvls_per_run, tt_split, validate_bcs_individually):
 
     all_runs_vgg16_dict = dict()
@@ -340,8 +335,8 @@ def fullrun_VGG16_and_benchmarks(game, bc_list, cnn_output_comp_algo, baseline_d
     return
 
 
-
-def generate_and_validate_CNN_compressions_for_bc_set(game, level_wrappers, bc_list,cnn_type, comp_algo, output_path_root, logfile, starttime, bcs_individually, tt_split):
+#Full process of generating and validating generative space visualisations using a given CNN approach
+def generate_and_validate_CNN_compressions_for_bc_set(game, level_wrappers, bc_list, cnn_type, comp_algo, output_path_root, logfile, starttime, bcs_individually, tt_split):
     
     level_shape = get_level_heightandwidth_for_game(game)
     tile_type_count = get_folder_and_tiletypedict_for_game(game)['Tile_Type_Dict']["CountOfNumericTileTypes"]
@@ -412,7 +407,9 @@ def generate_and_validate_CNN_compressions_for_bc_set(game, level_wrappers, bc_l
 
     return assembled_bc_dict
 
-def batches_of_full_runs(games, vgg_lrs, basic_lrs, batches_path, rn_cnt, levels_per_run, tt_split,  process_bcs_individually):
+
+#Experimental method for doing batches of multiple runs using different learning rates for both the VGG16 CNN and the Basic CNN variant 
+def batches_of_full_runs(games,cnn_output_comp_algo, baseline_dr_algo, vgg_lrs, basic_lrs, batches_path, rn_cnt, levels_per_run, tt_split,  process_bcs_individually):
 
     #Check that input arrays match
     if not (len(games) == len(vgg_lrs) and len(games) == len(basic_lrs) ):
@@ -427,7 +424,7 @@ def batches_of_full_runs(games, vgg_lrs, basic_lrs, batches_path, rn_cnt, levels
         bl_adam_opt_lr = basic_lrs[i]
 
         batch_name = batches_path + "/Batch-" + str(i)+"-Game-" + games[i].name +"VGLR-"+str(vgg_lrs[i])+"BaseLR-"+str(basic_lrs[i])+"/"
-        fullrun_VGG16_and_benchmarks(games[i], gamebcs, CompressionType.PCA, CompressionType.PCA, batch_name, rn_cnt,levels_per_run, tt_split,  process_bcs_individually)
+        fullrun_VGG16_and_benchmarks(games[i], gamebcs, cnn_output_comp_algo, baseline_dr_algo, batch_name, rn_cnt,levels_per_run, tt_split,  process_bcs_individually)
 
 
 
@@ -446,9 +443,9 @@ cnn_compmode = CompressionType.PCA
 #Optional mode to evaluate CNN-based visualisations on one BC at a time, while training the network on all but that BC
 process_bcs_individually = False
 #Number of runs
-rn_cnt = 5
+rn_cnt = 1
 #Levels per game per run (evenly split between the level sets for each generator)
-levels_per_run = 1000
+levels_per_run = 50
 #Train test split for network training
 tt_split = .8
 
@@ -458,7 +455,7 @@ vgg_adam_opt_lr = 0.0005
 bl_adam_opt_lr = 0.01
 
 
-output_files_name = OUTPUT_PATH +'/FULL_RUN_OUTPUT/'
+output_files_name = OUTPUT_PATH +'/TESTING_FilePlacement/'
 
 bcs = get_BCs_for_game(expgame)
 
@@ -471,6 +468,8 @@ fullrun_VGG16_and_benchmarks(expgame, bcs, cnn_compmode, baseline_comp_algo, out
 #game_batch = [Game.Mario, Game.Mario, Game.Boxoban, Game.Boxoban]
 #vglr_batch = [0.0003, 0.0004, 0.00006, 0.00007]
 #baselr_batch = [0.005, 0.008, 0.0012, 0.0015]
+#batch_cnn_compmode = CompressionType.PCA
+#batch_vanilladr_compmode = CompressionType.PCA
 #batch_path = OUTPUT_PATH + '/BATCHED_OUTPUT/'
 
-#batches_of_full_runs(game_batch, vglr_batch, baselr_batch, batch_path, 5, 1000, 0.8,  False)
+#batches_of_full_runs(game_batch, batch_cnn_compmode, batch_vanilladr_compmode, vglr_batch, baselr_batch, batch_path, 5, 1000, 0.8,  False)
