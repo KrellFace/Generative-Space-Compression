@@ -16,9 +16,9 @@ This repository is in the process of being developed and refactored to make it m
 
 1. Import sets of tile-based levels and calculate behavioral characteristics of those levels based on their representations
 2. Assemble the level sets into dataframes in which every row represents a level and every column represents a tile or tile+tiletype in the levels  
-3  
-a. (Dimmensionality Reduction) Apply one of a selection of dimmensionality reduction algorithms to the compressed dataframe and select the two most explanatory new variables for visualisation  
-b. (CNN Embedding Extraction) Train a CNN on a subset of the levels to predict their behavioural characteristics, and then use this trained network to extract level specific embeddings which can then be compressed using dimensionality reduction  
+3.
+  a. (Dimmensionality Reduction) Apply one of a selection of dimmensionality reduction algorithms to the compressed dataframe and select the two most explanatory new variables for visualisation  
+  b. (CNN Embedding Extraction) Train a CNN on a subset of the levels to predict their behavioural characteristics, and then use this trained network to extract level specific embeddings which can then be compressed using dimensionality reduction  
 4. Calculate the linear correlation between the pair-wise vector distances for levels in the compressed space, with their difference in behavioral characteristic values
 
 # Installation
