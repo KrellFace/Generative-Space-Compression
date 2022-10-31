@@ -83,7 +83,7 @@ def get_leveldict_from_folder(path, folder_key, game):
         level_name = os.path.basename(level)
         char_rep = char_matrix_from_file(level)
         char_rep_window = take_window_from_bottomright(char_rep, window_width, window_height)
-        level_reps[folder_key +':'+ level_name] = helper.generate_levelwrapper_for_game(game, level_name, folder_key, level, char_rep_window)
+        level_reps[f"{folder_key}:{level_name}"] = helper.generate_levelwrapper_for_game(game, level_name, folder_key, level, char_rep_window)
 
     return level_reps
 
@@ -103,7 +103,7 @@ def get_randnum_levelwrappers_folder(path, folder_key, game, count):
         level_name = os.path.basename(level)
         char_rep = char_matrix_from_file(level)
         char_rep_window = take_window_from_bottomright(char_rep, window_width, window_height)
-        level_reps[folder_key +':'+ level_name] = helper.generate_levelwrapper_for_game(game, level_name, folder_key, level, char_rep_window)
+        level_reps[f"{folder_key}:{level_name}"] = helper.generate_levelwrapper_for_game(game, level_name, folder_key, level, char_rep_window)
         counter+=1
 
     return level_reps

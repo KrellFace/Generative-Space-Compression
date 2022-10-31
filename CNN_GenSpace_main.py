@@ -9,6 +9,7 @@ from tensorflow.keras.optimizers import Adam
 import time
 from datetime import timedelta
 from datetime import datetime
+import logging
 
 
 OUTPUT_PATH  = '../Generative-Space-Compression/output'
@@ -27,7 +28,7 @@ class CNNType(Enum):
 #This module is for training a CNN to predict the BCs of input game levels
 #It takes in a set of level_wrappers with BCs calculated, and is instructed to not train on one of the BCs
 #It outputs the trained CNN, which should be saved in some form
-def train_and_save_CNN(level_wrappers, game, level_shape, tile_type_count, bcs_to_train, cnn_type, output_path, logfile, print_eval = False, save_model = False):
+def train_and_save_CNN(level_wrappers, game, level_shape, tile_type_count, bcs_to_train, cnn_type, output_path, logfile, print_history = False, save_model = False):
 
     input_shape = (level_shape[0], level_shape[1], tile_type_count)
 
@@ -35,13 +36,33 @@ def train_and_save_CNN(level_wrappers, game, level_shape, tile_type_count, bcs_t
 
     onehot_matrixes, bcs = get_model_ready_data_from_levelwrapperdict_and_bclist(level_wrappers, bcs_to_train, game)
 
-    model.fit(onehot_matrixes, bcs, verbose=0, epochs=100)
+    fitting_history = model.fit(onehot_matrixes, bcs, verbose=0, epochs=100)
+
+    if(print_history):
+        #DEBUG
+        # list all data in history
+        #print('History keys:')
+        #print(fitting_history.history.keys())
+
+        # summarize history for loss
+        plt.plot(fitting_history.history['loss'])
+        #plt.plot(fitting_history.history['val_loss'])
+        plt.title('model loss')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='upper left')
+        #plt.show()
+        plt.savefig(output_path+'LossOverTime.png')
+        plt.close()
     
-    mae = model.evaluate(onehot_matrixes, bcs, verbose=0)
+    mae = model.evaluate(onehot_matrixes, bcs, verbose=1)
+
+    #print('model Metrics names')
+    #print(model.metrics_names)
 
     # store result
-    eval_cnn_line = ("MeanAverage Error for CNN of type: " + cnn_type.name + " " + '>%.3f' % mae)
-    add_line_to_logfile(logfile, eval_cnn_line)
+    #eval_cnn_line = ("MeanAverage Error for CNN of type: " + cnn_type.name + " " + '>%.3f' % mae['loss'])
+    #add_line_to_logfile(logfile, eval_cnn_line)
     
     if(save_model):
         model.save(output_path)
@@ -66,7 +87,7 @@ def get_model(in_shape, bc_count, cnn_type):
         model.add(layers.Dense(bc_count))
         #model.summary()
         opt = Adam(bl_adam_opt_lr)
-        model.compile(loss='mae', optimizer=opt)
+        model.compile(loss='mae', optimizer=opt, metrics=['accuracy'])
         
         return model
     elif (cnn_type == CNNType.VGG16):
@@ -95,7 +116,7 @@ def get_model(in_shape, bc_count, cnn_type):
         model.add(Dense(units=1000,activation="relu"))
         model.add(Dense(units=bc_count))
         opt = Adam(vgg_adam_opt_lr)
-        model.compile(loss='mae', optimizer=opt)
+        model.compile(loss='mae', optimizer=opt, metrics=['accuracy'])
         return model
     else:
         print("CNN Type not recognised, please check input")
@@ -106,7 +127,7 @@ def get_model(in_shape, bc_count, cnn_type):
 ########################################################################################
 
 #Method for producing an assembled matrix in which each input level is represented by two dimensions, which are created by extracting the level modulated weights from the penultimate layer of a CNN, and then compressed using dimmensonality reduction
-def generate_visualisation_from_cnn(level_wrappers, model, game, comp_algo, save_intermediate_output = False, intermed_output_path = '', save_comp_weights = False, comp_weights_path = '', save_visual = False, visual_path = '', cnn_pure = False):
+def generate_visualisation_from_cnn(level_wrappers, model, game, comp_algo, logfile, save_intermediate_output = False, intermed_output_path = '', save_comp_weights = False, comp_weights_path = '', save_visual = False, visual_path = '', cnn_pure = False):
     #First we need to create our intermediate layer model
     compiled_level_weights = get_penultimate_layer_leveloutput(level_wrappers,model, save_intermediate_output,  intermed_output_path)
 
@@ -118,6 +139,10 @@ def generate_visualisation_from_cnn(level_wrappers, model, game, comp_algo, save
     data = get_compression_algo_projection(compiled_level_weights.drop('generator_name', axis=1), comp_algo)
     data[0]['generator_name'] = gen_name_list
     plot_compressed_data(data[0], data[1], [(comp_algo.name + ' 1'), (comp_algo.name + ' 2')],visual_path, list(folder_dict.keys()))
+
+    
+    eval_cnn_line = f"Variance Explained for Compressed Embeddings: {data[1]}."
+    add_line_to_logfile(logfile, eval_cnn_line)
     
     compressed_weights = data[0]
 
@@ -187,7 +212,7 @@ def vanilla_dr_for_levelset(level_wrappers, game, dr_comp_type, bc_list, base_fi
     comp_dist_df = gen_compression_dist_df_from_leveldict(updated_dict,game, [dr_comp_type],bc_list, base_file_path)
 
     lincorrdict = dict()
-    lincorrsfilepath = Path(base_file_path + "BenchmarkDR_linncorrs.txt")
+    lincorrsfilepath = Path(f"{base_file_path}BenchmarkDR_linncorrs.txt")
     temp_corrsdict = get_linear_correlations_from_df(comp_dist_df, [dr_comp_type], bc_list, lincorrsfilepath)
     #Look through dictionary of linear correlations, add them to outout
     for key in temp_corrsdict:
@@ -255,7 +280,7 @@ def fullrun_VGG16_and_benchmarks(game, bc_list, cnn_output_comp_algo, baseline_d
     all_runs_dr_dict = dict()
 
     os.makedirs(output_path_root)
-    logfile = output_path_root +"log.txt"
+    logfile = f"{output_path_root}/log.txt"
     f = open(logfile, 'w')
 
     start = time.time()
@@ -266,20 +291,20 @@ def fullrun_VGG16_and_benchmarks(game, bc_list, cnn_output_comp_algo, baseline_d
     for bc in bc_list:
         bcs_line+= (bc.name + ", ")
     add_line_to_logfile(logfile, bcs_line)
-    lvls_line = "Levels per run: " + str(lvls_per_run) + ", and train/test split ratio: " + str(tt_split)
+    lvls_line = f"Levels per run: {lvls_per_run}, and train/test split ratio: {tt_split}"
     add_line_to_logfile(logfile, lvls_line)
-    adam_line = "optimizer learning rates. VGG: " + str(vgg_adam_opt_lr) + " Basic: " + str(bl_adam_opt_lr) 
+    adam_line = f"optimizer learning rates. VGG: {vgg_adam_opt_lr} Basic: {bl_adam_opt_lr}" 
     add_line_to_logfile(logfile, adam_line)
 
 
     for i in range(run_count):
 
-        run_log_line = "Run " + str(i) + " - Starting with runtime " + str(timedelta(seconds=(time.time()-start)))
+        run_log_line = f"Run {i} - Starting with runtime {time.perf_counter()-start}"
         add_line_to_logfile(logfile, run_log_line)
 
-        run_path = output_path_root +"/RUN "+str(i)+"/"
+        run_path = f"{output_path_root}/RUN {i}/"
 
-        r_levels_line = ("Retrieving " + str(lvls_per_run) + " levels for Run: "+ str(i) + " for game: " + game.name + " at time " + str(timedelta(seconds=(time.time()-start))))
+        r_levels_line = f"Retrieving {lvls_per_run} levels for Run: {i} for game: {game.name}"
         add_line_to_logfile(logfile, r_levels_line)
 
         level_wrappers = dict()
@@ -289,7 +314,7 @@ def fullrun_VGG16_and_benchmarks(game, bc_list, cnn_output_comp_algo, baseline_d
             level_wrappers = get_randnum_levelwrappers_for_game(game, lvls_per_run)
 
         #VGG16 Compression
-        start_vgg16_line = ("Levels retrieved. Starting VGG16 compression and visualisation" + " at time " + str(timedelta(seconds=(time.time()-start))))
+        start_vgg16_line = f"Levels retrieved. Starting VGG16 compression and visualisation"
         add_line_to_logfile(logfile, start_vgg16_line)
         
         vgg16_corr_dict = generate_and_validate_CNN_compressions_for_bc_set(game, level_wrappers, bc_list, CNNType.VGG16, cnn_output_comp_algo, run_path+"/VGG16_RUNS/", logfile, start, validate_bcs_individually, tt_split)
@@ -298,7 +323,7 @@ def fullrun_VGG16_and_benchmarks(game, bc_list, cnn_output_comp_algo, baseline_d
             all_runs_vgg16_dict["Run "+str(i)+" "+key] = vgg16_corr_dict[key]
 
         #Basic CNN Compression
-        start_basicnn_line = ("VGG16 Compression completed. Starting Basic CNN compression and visualisation" + " at time " + str(timedelta(seconds=(time.time()-start))))
+        start_basicnn_line = f"VGG16 Compression completed. Starting Basic CNN compression and visualisation"
         add_line_to_logfile(logfile, start_basicnn_line)
         
         basiccnn_corr_dict = generate_and_validate_CNN_compressions_for_bc_set(game, level_wrappers, bc_list, CNNType.Basic, cnn_output_comp_algo, run_path+"/CNNBasic_RUNS/", logfile, start, validate_bcs_individually, tt_split)
@@ -307,17 +332,17 @@ def fullrun_VGG16_and_benchmarks(game, bc_list, cnn_output_comp_algo, baseline_d
             all_runs_basiccnn_dict["Run "+str(i)+" "+key] = basiccnn_corr_dict[key]
 
         #Vanillda DR Compression
-        vanilla_dr_line = ("Run: "+ str(i) + " CNN processes complete. Starting vanilla DR" + " at time " + str(timedelta(seconds=(time.time()-start))))
+        vanilla_dr_line = f"Run: {i} CNN processes complete. Starting vanilla DR"
         add_line_to_logfile(logfile, vanilla_dr_line)
         dr_corr_dict = vanilla_dr_for_levelset(level_wrappers, game, baseline_dr_algo, bc_list, run_path + "/DR_RUNS/")
 
         for key in dr_corr_dict:
             all_runs_dr_dict["Run "+str(i)+" "+key] = dr_corr_dict[key]
         
-        run_complete_line = ("Run: "+ str(i) + " completed" + " at time " + str(timedelta(seconds=(time.time()-start))))
+        run_complete_line = f"Run: {i} completed at time {timedelta(seconds=(time.time()-start))}"
         add_line_to_logfile(logfile, run_complete_line)
         
-    allruns_line = ("All runs completed. Generating final data " + " at time " + str(timedelta(seconds=(time.time()-start))))
+    allruns_line = f"All runs completed. Generating final data"
     add_line_to_logfile(logfile, allruns_line)
     finalVGG16linncorrsdf = pd.DataFrame.from_dict(all_runs_vgg16_dict, orient = 'index', columns = ['Compression_Dist',  'BCDist', 'Spearman Coeff', 'Spearman P Val'] )
     finalvgg16outputpath = Path(output_path_root+ "/Total VGG16 Lin Corrs.csv")
@@ -351,7 +376,7 @@ def generate_and_validate_CNN_compressions_for_bc_set(game, level_wrappers, bc_l
             train_bcs.pop(i)
             curr_bc = bc_list[i]
 
-            start_cnn_line = ("Starting CNN training for BC" + curr_bc.name + " with train/test split: " + str(tt_split) + " with runtime " + str(timedelta(seconds=(time.time()-starttime))))
+            start_cnn_line = f"Starting CNN training for BC {curr_bc.name} with train/test split: {tt_split} with runtime {timedelta(seconds=(time.time()-starttime))}"
             add_line_to_logfile(logfile, start_cnn_line)
 
             bcrun_fileroot = output_path_root + "/"+curr_bc.name + "_Run/"
@@ -363,13 +388,13 @@ def generate_and_validate_CNN_compressions_for_bc_set(game, level_wrappers, bc_l
 
             full_model = train_and_save_CNN(training_data, game, level_shape, tile_type_count, train_bcs, cnn_type, bcrun_fileroot + 'model', logfile, True, True)
 
-            start_visual_line = ("Starting CNN trained. Starting visualisation generation with runtime " + str(timedelta(seconds=(time.time()-starttime))))
+            start_visual_line = f"Starting CNN trained. Starting visualisation generation with runtime {timedelta(seconds=(time.time()-starttime))}"
             add_line_to_logfile(logfile, start_visual_line)
 
-            comp_weights = generate_visualisation_from_cnn(test_data, full_model, game, comp_algo, True, bcrun_fileroot + 'IntermediateWeights.csv',  True, bcrun_fileroot + 'CompressedWeights.csv', True, bcrun_fileroot + "CNN_Compression_Visual.png")
+            comp_weights = generate_visualisation_from_cnn(test_data, full_model, game, comp_algo, logfile, True, bcrun_fileroot + 'IntermediateWeights.csv',  True, bcrun_fileroot + 'CompressedWeights.csv', True, bcrun_fileroot + "CNN_Compression_Visual.png")
 
             
-            start_visual_line = ("Visualisation generation finished. Starting lincoor calculation with runtime " + str(timedelta(seconds=(time.time()-starttime))))
+            start_visual_line = f"Visualisation generation finished. Starting lincoor calculation with runtime {timedelta(seconds=(time.time()-starttime))}"
             add_line_to_logfile(logfile, start_visual_line)
 
             linncorrs = calculate_linncorr_of_projection_for_bc(game, test_data, comp_weights, [curr_bc], comp_algo, bcrun_fileroot, output_path_root +"CNNComp_LinearCorrelations.txt")
@@ -377,10 +402,12 @@ def generate_and_validate_CNN_compressions_for_bc_set(game, level_wrappers, bc_l
             all_bcs_dicts.append(linncorrs)
 
     else:
-        start_cnn_line = ("Starting CNN training for full BC list with train/test split: " + str(tt_split) + " with runtime " + str(timedelta(seconds=(time.time()-starttime))))
+        start_cnn_line = f"Starting CNN training for full BC list with train/test split: {tt_split}"
         add_line_to_logfile(logfile, start_cnn_line)
 
         bcrun_fileroot = output_path_root + "/Combined BCs_Run/"
+        
+        os.makedirs(bcrun_fileroot)
 
         lvlwrapseries = pd.Series(level_wrappers)
         #print(lvlwrapseries.head)
@@ -388,13 +415,13 @@ def generate_and_validate_CNN_compressions_for_bc_set(game, level_wrappers, bc_l
 
         full_model = train_and_save_CNN(training_data, game, level_shape, tile_type_count, bc_list, cnn_type, bcrun_fileroot + 'model', logfile, True, True)
         
-        start_visual_line = ("Starting CNN trained. Starting visualisation generation with runtime " + str(timedelta(seconds=(time.time()-starttime))))
+        start_visual_line = f"Starting CNN trained. Starting visualisation generation"
         add_line_to_logfile(logfile, start_visual_line)
 
-        comp_weights = generate_visualisation_from_cnn(test_data, full_model, game, comp_algo, True, bcrun_fileroot + 'IntermediateWeights.csv',  True, bcrun_fileroot + 'CompressedWeights.csv', True, bcrun_fileroot + "CNN_Compression_Visual.png")
+        comp_weights = generate_visualisation_from_cnn(test_data, full_model, game, comp_algo, logfile, True, bcrun_fileroot + 'IntermediateWeights.csv',  True, bcrun_fileroot + 'CompressedWeights.csv', True, bcrun_fileroot + "CNN_Compression_Visual.png")
 
         
-        start_visual_line = ("Visualisation generation finished. Starting lincoor calculation with runtime " + str(timedelta(seconds=(time.time()-starttime))))
+        start_visual_line = f"Visualisation generation finished. Starting lincoor calculation"
         add_line_to_logfile(logfile, start_visual_line)
 
         linncorrs = calculate_linncorr_of_projection_for_bc(game, test_data, comp_weights, bc_list, comp_algo, bcrun_fileroot, output_path_root +"CNNComp_LinearCorrelations.txt")
@@ -423,7 +450,7 @@ def batches_of_full_runs(games,cnn_output_comp_algo, baseline_dr_algo, vgg_lrs, 
         global bl_adam_opt_lr
         bl_adam_opt_lr = basic_lrs[i]
 
-        batch_name = batches_path + "/Batch-" + str(i)+"-Game-" + games[i].name +"VGLR-"+str(vgg_lrs[i])+"BaseLR-"+str(basic_lrs[i])+"/"
+        batch_name = f"{batches_path}/Batch-{i}-Game-{games[i].name} VGLR-{vgg_lrs[i]} BaseLR-{basic_lrs[i]}/"
         fullrun_VGG16_and_benchmarks(games[i], gamebcs, cnn_output_comp_algo, baseline_dr_algo, batch_name, rn_cnt,levels_per_run, tt_split,  process_bcs_individually)
 
 
@@ -435,7 +462,7 @@ def batches_of_full_runs(games,cnn_output_comp_algo, baseline_dr_algo, vgg_lrs, 
 
 #RUN PARAMETERS
 #Game domain to visualise
-expgame = Game.Mario
+expgame = Game.Boxoban
 #Compression algorithm to reduce the CNN extracted level weights to 2 dimensions
 baseline_comp_algo = CompressionType.PCA
 #Compression algorithm applied to the level representations themselves (used as our baseline to compare CNN against)
@@ -445,7 +472,7 @@ process_bcs_individually = False
 #Number of runs
 rn_cnt = 1
 #Levels per game per run (evenly split between the level sets for each generator)
-levels_per_run = 50
+levels_per_run = 1000
 #Train test split for network training
 tt_split = .8
 
@@ -455,11 +482,16 @@ vgg_adam_opt_lr = 0.0005
 bl_adam_opt_lr = 0.01
 
 
-output_files_name = OUTPUT_PATH +'/TESTING_FilePlacement/'
+output_files_name = f"{OUTPUT_PATH}/TestRun_F_Format3"
 
-bcs = get_BCs_for_game(expgame)
+def main():
 
-fullrun_VGG16_and_benchmarks(expgame, bcs, cnn_compmode, baseline_comp_algo, output_files_name, rn_cnt,levels_per_run, tt_split,  process_bcs_individually)
+    bcs = get_BCs_for_game(expgame)
+
+    fullrun_VGG16_and_benchmarks(expgame, bcs, cnn_compmode, baseline_comp_algo, output_files_name, rn_cnt,levels_per_run, tt_split,  process_bcs_individually)
+
+if __name__ == "__main__":
+    main()
 
 
 #BATCHES OF FULL RUNS WITH DIFFERENT LEARNING RATES

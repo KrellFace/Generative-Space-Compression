@@ -67,7 +67,7 @@ def get_extreme_coords(level_coord_dict, extremecount = 5):
     
     return output_dict
 
-def calculateDistance(x1,y1,x2,y2):
+def calc_euclidean_dist(x1,y1,x2,y2):
     dist = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
     return dist
 
@@ -140,23 +140,23 @@ def get_distances_for_algolist_for_levelpair(level1, level2, algolist):
     distances = []
     for algo in algolist:
         if (algo == CompressionType.PCA):
-            distances.append(calculateDistance(level1.PC1Val, level1.PC2Val, level2.PC1Val, level2.PC2Val))
+            distances.append(calc_euclidean_dist(level1.PC1Val, level1.PC2Val, level2.PC1Val, level2.PC2Val))
         elif (algo == CompressionType.SVD):
-            distances.append(calculateDistance(level1.SVD1Val, level1.SVD2Val, level2.SVD1Val, level2.SVD2Val))
+            distances.append(calc_euclidean_dist(level1.SVD1Val, level1.SVD2Val, level2.SVD1Val, level2.SVD2Val))
         elif (algo == CompressionType.MCA):
-            distances.append(calculateDistance(level1.MCA1Val, level1.MCA2Val, level2.MCA1Val, level2.MCA2Val))
+            distances.append(calc_euclidean_dist(level1.MCA1Val, level1.MCA2Val, level2.MCA1Val, level2.MCA2Val))
         elif (algo == CompressionType.TSNE):
-            distances.append(calculateDistance(level1.TSNEVal1, level1.TSNEVal2, level2.TSNEVal1, level2.TSNEVal2))
+            distances.append(calc_euclidean_dist(level1.TSNEVal1, level1.TSNEVal2, level2.TSNEVal1, level2.TSNEVal2))
         elif (algo == CompressionType.KPCA_SIGMOID):
-            distances.append(calculateDistance(level1.KPCASigmoidVal1, level1.KPCASigmoidVal2, level2.KPCASigmoidVal1, level2.KPCASigmoidVal2))
+            distances.append(calc_euclidean_dist(level1.KPCASigmoidVal1, level1.KPCASigmoidVal2, level2.KPCASigmoidVal1, level2.KPCASigmoidVal2))
         elif (algo == CompressionType.KPCA_COSINE):
-            distances.append(calculateDistance(level1.KPCACosineVal1, level1.KPCACosineVal2, level2.KPCACosineVal1, level2.KPCACosineVal2))  
+            distances.append(calc_euclidean_dist(level1.KPCACosineVal1, level1.KPCACosineVal2, level2.KPCACosineVal1, level2.KPCACosineVal2))  
         elif (algo == CompressionType.KPCA_POLY):
-            distances.append(calculateDistance(level1.KPCAPolyVal1, level1.KPCAPolyVal2, level2.KPCAPolyVal1, level2.KPCAPolyVal2))           
+            distances.append(calc_euclidean_dist(level1.KPCAPolyVal1, level1.KPCAPolyVal2, level2.KPCAPolyVal1, level2.KPCAPolyVal2))           
         elif (algo == CompressionType.KPCA_RBF):
-            distances.append(calculateDistance(level1.KPCARbfVal1, level1.KPCARbfVal2, level2.KPCARbfVal1, level2.KPCARbfVal2))           
+            distances.append(calc_euclidean_dist(level1.KPCARbfVal1, level1.KPCARbfVal2, level2.KPCARbfVal1, level2.KPCARbfVal2))           
         elif (algo == CompressionType.CNN_Output):
-            distances.append(calculateDistance(level1.CNN_OutputVal1, level1.CNN_OutputVal2, level2.CNN_OutputVal1, level2.CNN_OutputVal2))
+            distances.append(calc_euclidean_dist(level1.CNN_OutputVal1, level1.CNN_OutputVal2, level2.CNN_OutputVal1, level2.CNN_OutputVal2))
         else:
             print("Algo not recognised in get distances method")
     return distances
@@ -164,18 +164,6 @@ def get_distances_for_algolist_for_levelpair(level1, level2, algolist):
 def get_bcvals_for_bclist_for_levelpair(level1, level2, bclist):
     vals = []
     for bc in bclist:
-        #if (bc == BCType.EmptySpace):
-        #    vals+=[level1.empty_space, level2.empty_space]
-        #elif (bc == BCType.EnemyCount):
-        #    vals+=[level1.enemy_count, level2.enemy_count]
-        #elif (bc == BCType.Linearity):
-       #     vals+=[level1.linearity, level2.linearity]
-        #elif (bc == BCType.Contiguity):
-        #    vals+=[level1.contiguity, level2.contiguity]
-        #elif (bc == BCType.Density):
-        #    vals+=[level1.density, level2.density]
-        #else:
-        #    print("BC Type not recognised")
         vals+=[level1.bc_vals[bc], level2.bc_vals[bc]]
 
     return vals
@@ -183,18 +171,6 @@ def get_bcvals_for_bclist_for_levelpair(level1, level2, bclist):
 def get_differences_for_bclist_for_levelpair(level1, level2, bclist):
     differences = []
     for bc in bclist:
-        #if (bc == BCType.EmptySpace):
-        #    differences.append(abs(level1.empty_space - level2.empty_space))
-        #elif (bc == BCType.EnemyCount):
-        #    differences.append(abs(level1.enemy_count - level2.enemy_count))
-        #elif (bc == BCType.Linearity):
-        #    differences.append(abs(level1.linearity - level2.linearity))
-        #elif (bc == BCType.Contiguity):
-        #    differences.append(abs(level1.contiguity - level2.contiguity))
-        #elif (bc == BCType.Density):
-        #    differences.append(abs(level1.density - level2.density))
-        #else:
-        #    print("BC type not recognised")
         differences.append(abs(level1.bc_vals[bc] - level2.bc_vals[bc]))
         #print("Difference for level pair: with BC1: " + str(level1.bc_vals[bc]) + ' and BC2: ' + str(level2.bc_vals[bc]))
     return differences
@@ -209,24 +185,24 @@ def gen_valanddist_colnames_for_algos(algolist):
     returnlist = []
     #Value column names
     for algo in algolist:
-        returnlist.append("1stLvlVal "+ algo.name + " 1") 
-        returnlist.append("1stLvlVal  "+ algo.name + " 2") 
-        returnlist.append("2ndLvlVal  "+ algo.name + " 1") 
-        returnlist.append("2ndLvlVal  "+ algo.name + " 2") 
+        returnlist.append(f"1stLvlVal {algo.name} 1") 
+        returnlist.append(f"1stLvlVal {algo.name} 2") 
+        returnlist.append(f"2ndLvlVal {algo.name} 1") 
+        returnlist.append(f"2ndLvlVal {algo.name} 2") 
     returnlist+=gen_distnames_for_algos(algolist)
     return returnlist
     
 def gen_diffnames_for_bcs(bclist):
     returnlist = []
     for bc in bclist:
-        returnlist.append(bc.name + "Dist")
+        returnlist.append(f"{bc.name} Dist")
     return returnlist
 
 def gen_valanddiff_colnames_for_bcs(bclist):
     returnlist = []
     for bc in bclist:
-        returnlist.append("1stLvlVal "+ bc.name) 
-        returnlist.append("2ndLvlVal "+ bc.name) 
+        returnlist.append(f"1stLvlVal {bc.name}") 
+        returnlist.append(f"2ndLvlVal {bc.name}") 
     returnlist+=gen_diffnames_for_bcs(bclist)
     return returnlist
 
