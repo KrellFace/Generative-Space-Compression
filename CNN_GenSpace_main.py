@@ -482,7 +482,7 @@ vgg_adam_opt_lr = 0.0005
 bl_adam_opt_lr = 0.01
 
 
-output_files_name = f"{OUTPUT_PATH}/TestRun_F_Format3"
+output_files_name = f"{OUTPUT_PATH}/YOUR_OUTPUT"
 
 def main():
 
