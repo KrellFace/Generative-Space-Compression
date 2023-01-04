@@ -8,11 +8,11 @@ The current platform supports two alternative methods for producing 2D visualisa
 
 One, using only dimmensionality reduction applied to the level representations themselves, which was introduced and evaluated in 'Compressing and Comparing the Generative Spaces of Procedural Content Generators' (https://arxiv.org/abs/2205.15133). The base file for executing this approach is currently 'GenSpaceCompression_main.py'
 
-The other, using representations extracted from a trained Convolutional Neural Network, introduced and evaluated in 'Visualising Generative Spaces Using Convolutional Neural Network Embeddings' (arxiv link to follow). The base file for this workflow is 'CNN_GenSpace_main.py'
+The other, using representations extracted from a trained Convolutional Neural Network, introduced and evaluated in 'Visualising Generative Spaces Using Convolutional Neural Network Embeddings' (https://arxiv.org/abs/2210.17464). The base file for this workflow is 'CNN_GenSpace_main.py'
 
-This repository is in the process of being developed and refactored to make it more practicable for reuse in alternative experiments.
+This repository is in the process of being developed and refactored to make it more practicable for reuse in alternative experiments. Please feel free to contact me if you have any questions about the code base or how to make use of it.
 
-# Workflow Steps
+# Basic Workflow Steps
 
 1. Import sets of tile-based levels and calculate behavioral characteristics of those levels based on their representations
 2. Assemble the level sets into dataframes in which every row represents a level and every column represents a tile or tile+tiletype in the levels  
@@ -81,4 +81,4 @@ howpublished= {https://github.com/KrellFace/Generative-Space-Compression/},
 year = "2022",  
 }
 
-Or alternatively cite either of the two papers that evaluate it (https://arxiv.org/abs/2205.15133 & [to follow])
+Or alternatively cite either of the two papers that evaluate it (https://arxiv.org/abs/2205.15133) & (https://arxiv.org/abs/2210.17464)
